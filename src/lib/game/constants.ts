@@ -31,6 +31,9 @@ export const POWERUP_EFFECT_DURATION_MS = 5000;
 /** Target frame time for the physics loop (60 fps) */
 export const FRAME_MS = 1000 / 60;
 
+/** Duration (ms) of the goal flash animation */
+export const GOAL_FLASH_DURATION_MS = 700;
+
 /** Keyboard bindings */
 export const KEYS = {
 	/** Player 1 – left paddle */

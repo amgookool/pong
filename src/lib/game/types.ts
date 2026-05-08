@@ -62,6 +62,14 @@ export type GamePhase =
 
 export type AiDifficulty = 'easy' | 'medium' | 'hard';
 
+/** Visual flash shown on the side of the canvas where a goal was scored */
+export type GoalFlash = {
+	/** Which wall the ball crossed */
+	side: PlayerSide;
+	/** performance.now() timestamp when the flash started */
+	startedAt: number;
+};
+
 /** Full game state – treated as a plain reactive object */
 export type GameState = {
 	players: [Player, Player];
@@ -82,4 +90,6 @@ export type GameState = {
 	lastHitterId: 0 | 1 | null;
 	/** Timestamp of the last physics update */
 	lastFrameTime: number;
+	/** Active goal flash animation, or null */
+	goalFlash: GoalFlash | null;
 };

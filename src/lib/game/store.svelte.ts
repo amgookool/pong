@@ -15,9 +15,10 @@ import {
 	PADDLE_MARGIN,
 	BALL_RADIUS,
 	KEYS,
-	POWERUP_SPAWN_INTERVAL_MS
+	POWERUP_SPAWN_INTERVAL_MS,
+	GOAL_FLASH_DURATION_MS
 } from './constants';
-import type { GameState, Player, Ball, AiDifficulty } from './types';
+import type { GameState, Player, Ball, AiDifficulty, GoalFlash } from './types';
 import { tickAi, resetAiState } from './ai';
 import {
 	moveBall,
@@ -35,6 +36,7 @@ import {
 	applyEffect,
 	expirePlayerEffect
 } from './powerups';
+import { SvelteSet } from 'svelte/reactivity';
 
 // ---------------------------------------------------------------------------
 // Initial state factories
@@ -86,14 +88,16 @@ export const gameState = $state<GameState>({
 	aiDifficulty: 'medium',
 	matchWinnerId: null,
 	lastHitterId: null,
-	lastFrameTime: 0
+	lastFrameTime: 0,
+	goalFlash: null
 });
 
 // ---------------------------------------------------------------------------
 // Key state tracker (held keys)
 // ---------------------------------------------------------------------------
 
-const keysHeld = new Set<string>();
+// const keysHeld = new Set<string>();
+const keysHeld = new SvelteSet<string>();
 
 export function onKeyDown(e: KeyboardEvent): void {
 	keysHeld.add(e.code);
@@ -138,6 +142,7 @@ export function startGame(
 	gameState.matchWinnerId = null;
 	gameState.lastHitterId = null;
 	gameState.lastFrameTime = performance.now();
+	gameState.goalFlash = null;
 	resetAiState();
 }
 
@@ -155,9 +160,16 @@ function launchBall(): void {
 }
 
 /** Handle a goal: update scores, check for round/match end, reset for next serve */
-function handleGoal(scoredById: 0 | 1): void {
+function handleGoal(scoredById: 0 | 1, now: number): void {
 	const loser: 0 | 1 = scoredById === 0 ? 1 : 0;
 	gameState.players[scoredById].score += 1;
+
+	// Trigger goal flash on the side the ball crossed.
+	// Use the rAF `now` timestamp (not performance.now()) so render() sees elapsed >= 0.
+	gameState.goalFlash = {
+		side: scoredById === 0 ? 'right' : 'left',
+		startedAt: now
+	};
 
 	if (gameState.players[scoredById].score >= gameState.winningScore) {
 		// Round won
@@ -228,6 +240,7 @@ export function resetToSetup(): void {
 	gameState.matchWinnerId = null;
 	gameState.lastHitterId = null;
 	gameState.currentRound = 1;
+	gameState.goalFlash = null;
 	resetAiState();
 }
 
@@ -242,6 +255,11 @@ export function loop(now: number): void {
 
 	const delta = now - gameState.lastFrameTime;
 	gameState.lastFrameTime = now;
+
+	// Clear goal flash once its animation duration has elapsed
+	if (gameState.goalFlash && now - gameState.goalFlash.startedAt >= GOAL_FLASH_DURATION_MS) {
+		gameState.goalFlash = null;
+	}
 
 	// --- handle input ---
 	if (keysHeld.has(KEYS.LAUNCH)) launchBall();
@@ -324,7 +342,7 @@ export function loop(now: number): void {
 	// Check for goal
 	const goal = checkGoal(ball);
 	if (goal) {
-		handleGoal(goal.scoredById);
+		handleGoal(goal.scoredById, now);
 	} else {
 		gameState.ball = ball;
 	}

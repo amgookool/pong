@@ -16,6 +16,7 @@
 	} from '$lib/game/constants';
 	import { POWERUP_COLORS } from '$lib/game/powerups';
 	import type { PowerUpType } from '$lib/game/types';
+	import { GOAL_FLASH_DURATION_MS } from '$lib/game/constants';
 
 	let canvas: HTMLCanvasElement;
 	let ctx: CanvasRenderingContext2D;
@@ -156,6 +157,57 @@
 		ctx.restore();
 	}
 
+	/**
+	 * Draw a goal-scored flash on the side where the ball crossed the boundary.
+	 * The effect is a gradient wash + expanding rings that fade over GOAL_FLASH_DURATION_MS.
+	 */
+	function drawGoalFlash(side: 'left' | 'right', startedAt: number, now: number) {
+		// Clamp elapsed to >= 0 (startedAt is the rAF timestamp so this should always be >= 0,
+		// but guard against any sub-millisecond skew)
+		const elapsed = Math.max(0, now - startedAt);
+		const t = Math.min(elapsed / GOAL_FLASH_DURATION_MS, 1); // 0 → 1
+		// ease-out curve: fast bright burst that decays quickly
+		const alpha = (1 - t) * (1 - t);
+
+		const isLeft = side === 'left';
+		const edgeX = isLeft ? 0 : CANVAS_WIDTH;
+
+		// Colour matches the scoring player (left wall = P2 scored, right wall = P1 scored)
+		const [r, g, b] = isLeft
+			? [167, 139, 250] // violet-400 (P2)
+			: [34, 211, 238]; // cyan-400 (P1)
+
+		ctx.save();
+
+		// --- bright edge flash at t=0, fades to nothing ---
+		const washWidth = CANVAS_WIDTH * 0.55;
+		const gradX0 = isLeft ? 0 : CANVAS_WIDTH;
+		const gradX1 = isLeft ? washWidth : CANVAS_WIDTH - washWidth;
+		const grad = ctx.createLinearGradient(gradX0, 0, gradX1, 0);
+		grad.addColorStop(0, `rgba(${r},${g},${b},${(alpha * 0.75).toFixed(3)})`);
+		grad.addColorStop(0.3, `rgba(${r},${g},${b},${(alpha * 0.4).toFixed(3)})`);
+		grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+		ctx.fillStyle = grad;
+		ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+		// --- expanding rings ripple outward from the goal wall midpoint ---
+		const ringCount = 3;
+		const maxRadius = CANVAS_WIDTH * 0.8;
+		for (let i = 0; i < ringCount; i++) {
+			const ringPhase = (t + i / ringCount) % 1; // 0 → 1 staggered per ring
+			const ringAlpha = (1 - ringPhase) * alpha * 0.9;
+			const radius = Math.max(0, ringPhase * maxRadius);
+
+			ctx.beginPath();
+			ctx.arc(edgeX, CANVAS_HEIGHT / 2, radius, 0, Math.PI * 2);
+			ctx.strokeStyle = `rgba(${r},${g},${b},${ringAlpha.toFixed(3)})`;
+			ctx.lineWidth = 3;
+			ctx.stroke();
+		}
+
+		ctx.restore();
+	}
+
 	// ---------------------------------------------------------------------------
 	// Main render function
 	// ---------------------------------------------------------------------------
@@ -167,6 +219,11 @@
 
 		clearCanvas();
 		drawMidLine();
+
+		// Goal flash (drawn early so paddles/ball render on top)
+		if (state.goalFlash) {
+			drawGoalFlash(state.goalFlash.side, state.goalFlash.startedAt, now);
+		}
 
 		// Paddles
 		drawPaddle(PADDLE_MARGIN, p0.paddleY, p0.paddleHeight, COLOR.p1Paddle);
