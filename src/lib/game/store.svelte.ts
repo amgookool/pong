@@ -38,6 +38,7 @@ import {
 	expirePlayerEffects
 } from './powerups';
 import { SvelteSet } from 'svelte/reactivity';
+import { initAudio, playSound } from './audio';
 
 // ---------------------------------------------------------------------------
 // Initial state factories
@@ -149,6 +150,7 @@ export function startGame(
 	gameState.goalFlash = null;
 	gameState.extraBalls = [];
 	resetAiState();
+	initAudio(); // fire-and-forget – must be called from a user-gesture stack
 }
 
 /** Called when spacebar is pressed to launch the ball */
@@ -179,19 +181,24 @@ function handleGoal(scoredById: 0 | 1, now: number): void {
 	// Clear all extra balls – gameplay returns to single-ball on any goal
 	gameState.extraBalls = [];
 
-	if (gameState.players[scoredById].score >= gameState.winningScore) {
+	const roundWon = gameState.players[scoredById].score >= gameState.winningScore;
+	if (roundWon) {
 		// Round won
 		gameState.players[scoredById].wins += 1;
 
 		if (gameState.players[scoredById].wins >= gameState.winningRounds) {
 			// Match over
+			playSound('win');
 			gameState.phase = 'gameOver';
 			gameState.matchWinnerId = scoredById;
 			return;
 		}
 
 		// Show the round-over screen; scores/effects are reset when the player continues
+		playSound('win');
 		gameState.phase = 'roundOver';
+	} else {
+		playSound('goal');
 	}
 
 	// Reset ball to the loser's paddle
@@ -328,18 +335,24 @@ export function loop(now: number): void {
 	}
 
 	// Move ball
+	const prevVy = gameState.ball.vy;
 	let ball = moveBall(gameState.ball);
+
+	// Wall bounce sound (vy sign flipped = top/bottom wall hit)
+	if (Math.sign(prevVy) !== Math.sign(ball.vy)) playSound('wall');
 
 	// Paddle collisions
 	const { ball: afterPaddle, hitterId } = resolvePaddleCollisions(ball, gameState.players);
 	ball = afterPaddle;
 	if (hitterId !== null) {
 		gameState.lastHitterId = hitterId;
+		playSound('paddle');
 	}
 
 	// Power-up collisions (primary ball only)
 	const hitPowerUp = detectPowerUpCollision(ball, gameState.powerUps);
 	if (hitPowerUp) {
+		playSound('powerup');
 		if (hitPowerUp.type === 'SPLIT_BALL') {
 			// Spawn a real extra ball – counts for scoring
 			gameState.extraBalls = [...gameState.extraBalls, spawnExtraBall(ball, false, now)];
