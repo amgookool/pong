@@ -13,6 +13,8 @@
 	let aiDifficulty = $state<AiDifficulty>('medium');
 	let winningScore = $state(5);
 	let winningRounds = $state(3);
+	let bumpersEnabled = $state(false);
+	let bumperMaxCount = $state<2 | 4 | 6>(4);
 
 	const difficulties: { value: AiDifficulty; label: string; desc: string }[] = [
 		{ value: 'easy',   label: 'Easy',   desc: 'Relaxed — great for beginners' },
@@ -28,212 +30,246 @@
 			winningScore,
 			winningRounds,
 			mode === 'single',
-			aiDifficulty
+			aiDifficulty,
+			bumpersEnabled,
+			bumperMaxCount
 		);
 	}
 </script>
 
-<div class="flex min-h-screen items-center justify-center bg-gray-950 px-4">
-	<div
-		class="w-full max-w-lg rounded-2xl border border-white/10 bg-gray-900 p-10 shadow-2xl shadow-black/60"
-	>
-		<!-- Title -->
-		<div class="mb-8 text-center">
+<!-- Outer scroll wrapper – lets the card grow taller than the viewport -->
+<div class="min-h-screen overflow-y-auto bg-gray-950 px-4 py-8">
+	<div class="mx-auto w-full max-w-lg">
+
+		<!-- Header -->
+		<div class="mb-6 text-center">
 			<h1 class="text-5xl font-black tracking-widest text-white">PONG</h1>
+			<p class="mt-1 text-xs tracking-widest text-gray-600 uppercase">Configure your match</p>
 		</div>
 
 		<!-- Mode toggle -->
-		<div class="mb-8 flex rounded-xl border border-white/10 bg-gray-800/60 p-1">
+		<div class="mb-6 flex rounded-xl border border-white/10 bg-gray-900 p-1">
 			<button
 				type="button"
 				onclick={() => (mode = 'single')}
-				class="flex-1 rounded-lg py-2.5 text-sm font-semibold tracking-widest uppercase transition
-					{mode === 'single'
-						? 'bg-white text-gray-950 shadow'
-						: 'text-gray-400 hover:text-white'}"
-			>
-				Single Player
-			</button>
+				class="flex-1 rounded-lg py-2 text-xs font-bold tracking-widest uppercase transition
+					{mode === 'single' ? 'bg-white text-gray-950 shadow' : 'text-gray-400 hover:text-white'}"
+			>Single Player</button>
 			<button
 				type="button"
 				onclick={() => (mode = 'two')}
-				class="flex-1 rounded-lg py-2.5 text-sm font-semibold tracking-widest uppercase transition
-					{mode === 'two'
-						? 'bg-white text-gray-950 shadow'
-						: 'text-gray-400 hover:text-white'}"
-			>
-				Two Players
-			</button>
+				class="flex-1 rounded-lg py-2 text-xs font-bold tracking-widest uppercase transition
+					{mode === 'two' ? 'bg-white text-gray-950 shadow' : 'text-gray-400 hover:text-white'}"
+			>Two Players</button>
 		</div>
 
-		<form onsubmit={handleStart} class="space-y-7">
+		<form onsubmit={handleStart} class="space-y-5">
 
-			<!-- Player name(s) -->
-			{#if mode === 'single'}
-				<div class="space-y-2">
-					<label for="p1name-sp" class="block text-xs font-semibold tracking-widest text-cyan-400 uppercase">
-						Your Name
-					</label>
-					<input
-						id="p1name-sp"
-						type="text"
-						bind:value={p1Name}
-						maxlength="16"
-						placeholder="Player 1"
-						class="w-full rounded-lg border border-white/10 bg-gray-800 px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-					/>
-					<p class="text-xs text-gray-500">Controls: <kbd class="rounded bg-gray-700 px-1">W</kbd> / <kbd class="rounded bg-gray-700 px-1">S</kbd></p>
-				</div>
+			<!-- ── Players ──────────────────────────────────────────── -->
+			<section class="rounded-xl border border-white/8 bg-gray-900 p-4 space-y-4">
+				<h2 class="text-[10px] font-bold tracking-widest text-gray-500 uppercase">Players</h2>
 
-				<!-- Difficulty -->
-				<div class="space-y-3">
-					<p class="text-xs font-semibold tracking-widest text-gray-400 uppercase">AI Difficulty</p>
-					<div class="grid grid-cols-3 gap-2">
-						{#each difficulties as d, i (i)}
-							<button
-								type="button"
-								onclick={() => (aiDifficulty = d.value)}
-								class="flex flex-col items-center gap-1 rounded-xl border py-3 px-2 text-xs font-semibold tracking-widest uppercase transition
-									{aiDifficulty === d.value
-										? 'border-white/30 bg-white/10 text-white'
-										: 'border-white/5 text-gray-500 hover:border-white/15 hover:text-gray-300'}"
-							>
-								{d.label}
-								<span class="text-[9px] font-normal normal-case tracking-normal text-gray-500 text-center leading-tight">{d.desc}</span>
-							</button>
-						{/each}
-					</div>
-				</div>
-			{:else}
-				<div class="grid grid-cols-2 gap-4">
-					<!-- Player 1 -->
-					<div class="space-y-2">
-						<label for="p1name" class="block text-xs font-semibold tracking-widest text-cyan-400 uppercase">
-							Player 1
-						</label>
+				{#if mode === 'single'}
+					<div class="space-y-1.5">
+						<label for="p1name-sp" class="block text-xs font-semibold text-cyan-400">Your Name</label>
 						<input
-							id="p1name"
+							id="p1name-sp"
 							type="text"
 							bind:value={p1Name}
 							maxlength="16"
 							placeholder="Player 1"
-							class="w-full rounded-lg border border-white/10 bg-gray-800 px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+							class="w-full rounded-lg border border-white/10 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50"
 						/>
-						<p class="text-xs text-gray-500">Controls: <kbd class="rounded bg-gray-700 px-1">W</kbd> / <kbd class="rounded bg-gray-700 px-1">S</kbd></p>
+						<p class="text-[11px] text-gray-600">
+							Controls: <kbd class="rounded bg-gray-800 px-1 text-gray-400">W</kbd> / <kbd class="rounded bg-gray-800 px-1 text-gray-400">S</kbd>
+						</p>
 					</div>
 
-					<!-- Player 2 -->
 					<div class="space-y-2">
-						<label for="p2name" class="block text-xs font-semibold tracking-widest text-violet-400 uppercase">
-							Player 2
-						</label>
-						<input
-							id="p2name"
-							type="text"
-							bind:value={p2Name}
-							maxlength="16"
-							placeholder="Player 2"
-							class="w-full rounded-lg border border-white/10 bg-gray-800 px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
-						/>
-						<p class="text-xs text-gray-500">Controls: <kbd class="rounded bg-gray-700 px-1">O</kbd> / <kbd class="rounded bg-gray-700 px-1">L</kbd></p>
+						<p class="text-xs font-semibold text-gray-400">AI Difficulty</p>
+						<div class="grid grid-cols-3 gap-2">
+							{#each difficulties as d (d.value)}
+								<button
+									type="button"
+									onclick={() => (aiDifficulty = d.value)}
+									class="flex flex-col items-center gap-0.5 rounded-xl border py-2.5 px-2 text-xs font-semibold tracking-widest uppercase transition
+										{aiDifficulty === d.value
+											? 'border-white/25 bg-white/10 text-white'
+											: 'border-white/5 text-gray-500 hover:border-white/12 hover:text-gray-300'}"
+								>
+									{d.label}
+									<span class="text-[9px] font-normal normal-case tracking-normal text-gray-500 text-center leading-tight">{d.desc}</span>
+								</button>
+							{/each}
+						</div>
 					</div>
-				</div>
-			{/if}
+				{:else}
+					<div class="grid grid-cols-2 gap-3">
+						<div class="space-y-1.5">
+							<label for="p1name" class="block text-xs font-semibold text-cyan-400">Player 1</label>
+							<input
+								id="p1name"
+								type="text"
+								bind:value={p1Name}
+								maxlength="16"
+								placeholder="Player 1"
+								class="w-full rounded-lg border border-white/10 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50"
+							/>
+							<p class="text-[11px] text-gray-600">
+								<kbd class="rounded bg-gray-800 px-1 text-gray-400">W</kbd> / <kbd class="rounded bg-gray-800 px-1 text-gray-400">S</kbd>
+							</p>
+						</div>
+						<div class="space-y-1.5">
+							<label for="p2name" class="block text-xs font-semibold text-violet-400">Player 2</label>
+							<input
+								id="p2name"
+								type="text"
+								bind:value={p2Name}
+								maxlength="16"
+								placeholder="Player 2"
+								class="w-full rounded-lg border border-white/10 bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-600 outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-500/50"
+							/>
+							<p class="text-[11px] text-gray-600">
+								<kbd class="rounded bg-gray-800 px-1 text-gray-400">O</kbd> / <kbd class="rounded bg-gray-800 px-1 text-gray-400">L</kbd>
+							</p>
+						</div>
+					</div>
+				{/if}
+			</section>
 
-			<!-- Match settings -->
-			<div class="space-y-3">
-				<h2 class="text-xs font-semibold tracking-widest text-gray-400 uppercase">Match Settings</h2>
-				<div class="grid grid-cols-2 gap-4">
-					<div class="space-y-2">
-						<label for="winning-score" class="block text-xs text-gray-400">Goals to win a round</label>
+			<!-- ── Match Settings ───────────────────────────────────── -->
+			<section class="rounded-xl border border-white/8 bg-gray-900 p-4 space-y-3">
+				<h2 class="text-[10px] font-bold tracking-widest text-gray-500 uppercase">Match Settings</h2>
+				<div class="grid grid-cols-2 gap-3">
+					<div class="space-y-1.5">
+						<label for="winning-score" class="block text-[11px] text-gray-400">Goals per round</label>
 						<input
 							id="winning-score"
 							type="number"
 							bind:value={winningScore}
 							min="1"
 							max="21"
-							class="w-full rounded-lg border border-white/10 bg-gray-800 px-4 py-2.5 text-sm text-white outline-none transition focus:border-white/30 focus:ring-1 focus:ring-white/20"
+							class="w-full rounded-lg border border-white/10 bg-gray-800 px-3 py-2 text-sm text-white outline-none transition focus:border-white/25 focus:ring-1 focus:ring-white/15"
 						/>
 					</div>
-					<div class="space-y-2">
-						<label for="winning-rounds" class="block text-xs text-gray-400">Rounds to win the match</label>
+					<div class="space-y-1.5">
+						<label for="winning-rounds" class="block text-[11px] text-gray-400">Rounds to win</label>
 						<input
 							id="winning-rounds"
 							type="number"
 							bind:value={winningRounds}
 							min="1"
 							max="9"
-							class="w-full rounded-lg border border-white/10 bg-gray-800 px-4 py-2.5 text-sm text-white outline-none transition focus:border-white/30 focus:ring-1 focus:ring-white/20"
+							class="w-full rounded-lg border border-white/10 bg-gray-800 px-3 py-2 text-sm text-white outline-none transition focus:border-white/25 focus:ring-1 focus:ring-white/15"
 						/>
 					</div>
 				</div>
-			</div>
+			</section>
 
-			<!-- Power-up legend -->
-			<div class="rounded-xl border border-white/5 bg-gray-800/50 p-4 space-y-3">
-				<p class="text-xs font-semibold tracking-widest text-gray-400 uppercase">Power-ups &amp; Power-downs</p>
-				<p class="text-[10px] text-gray-500 leading-relaxed">
-					Items appear on the arena during play. The last player who touched the ball receives
-					the effect when it's collected.
-				</p>
-				<div class="grid grid-cols-2 gap-2">
-					<!-- Speed Boost -->
-					<div class="flex items-start gap-2">
-						<span class="mt-0.5 shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[9px] font-black text-black">↑</span>
-						<div>
-							<p class="text-[11px] font-semibold text-white leading-tight">Speed Boost</p>
-							<p class="text-[10px] text-gray-500">Ball moves faster for the hitter</p>
-						</div>
+			<!-- ── Arena Bumpers ────────────────────────────────────── -->
+			<section class="rounded-xl border border-white/8 bg-gray-900 p-4 space-y-3">
+				<div class="flex items-center justify-between">
+					<div>
+						<h2 class="text-[10px] font-bold tracking-widest text-gray-500 uppercase">Arena Bumpers</h2>
+						<p class="mt-0.5 text-[11px] text-gray-500">Obstacles that randomly spawn &amp; despawn mid-game</p>
 					</div>
-					<!-- Slow Ball -->
-					<div class="flex items-start gap-2">
-						<span class="mt-0.5 shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full bg-indigo-400 text-[9px] font-black text-black">↓</span>
-						<div>
-							<p class="text-[11px] font-semibold text-white leading-tight">Slow Ball</p>
-							<p class="text-[10px] text-gray-500">Ball moves slower for the hitter</p>
-						</div>
-					</div>
-					<!-- Big Paddle -->
-					<div class="flex items-start gap-2">
-						<span class="mt-0.5 shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full bg-green-400 text-[9px] font-black text-black">+</span>
-						<div>
-							<p class="text-[11px] font-semibold text-white leading-tight">Big Paddle</p>
-							<p class="text-[10px] text-gray-500">Hitter's paddle grows larger</p>
-						</div>
-					</div>
-					<!-- Tiny Paddle -->
-					<div class="flex items-start gap-2">
-						<span class="mt-0.5 shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-400 text-[9px] font-black text-black">−</span>
-						<div>
-							<p class="text-[11px] font-semibold text-white leading-tight">Tiny Paddle</p>
-							<p class="text-[10px] text-gray-500">Hitter's paddle shrinks</p>
-						</div>
-					</div>
-					<!-- Split Ball -->
-					<div class="flex items-start gap-2">
-						<span class="mt-0.5 shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full bg-orange-400 text-[9px] font-black text-black">⊕</span>
-						<div>
-							<p class="text-[11px] font-semibold text-white leading-tight">Split Ball</p>
-							<p class="text-[10px] text-gray-500">Spawns a second real ball — either can score</p>
-						</div>
-					</div>
-					<!-- Fake Ball -->
-					<div class="flex items-start gap-2">
-						<span class="mt-0.5 shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full bg-pink-400 text-[9px] font-black text-black">?</span>
-						<div>
-							<p class="text-[11px] font-semibold text-white leading-tight">Decoy Ball</p>
-							<p class="text-[10px] text-gray-500">Spawns a fake ball — looks real, doesn't score</p>
-						</div>
-					</div>
+					<button
+						type="button"
+						onclick={() => (bumpersEnabled = !bumpersEnabled)}
+						aria-label={bumpersEnabled ? 'Disable bumpers' : 'Enable bumpers'}
+						aria-pressed={bumpersEnabled}
+						class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition
+							{bumpersEnabled ? 'border-amber-500/50 bg-amber-500/20' : 'border-white/10 bg-gray-800'}"
+					>
+						<span class="inline-block h-4 w-4 rounded-full transition-transform
+							{bumpersEnabled ? 'translate-x-6 bg-amber-400' : 'translate-x-1 bg-gray-600'}">
+						</span>
+					</button>
 				</div>
-				<p class="text-[10px] text-gray-600 pt-1 border-t border-white/5">
-					Opposite effects cancel each other out. Same effect stacks the duration.
+
+				{#if bumpersEnabled}
+					<!-- Count picker -->
+					<div class="space-y-1.5">
+						<p class="text-[10px] text-gray-500">Max bumpers on the arena at once</p>
+						<div class="flex gap-2">
+							{#each ([2, 4, 6] as (2 | 4 | 6)[]) as n}
+								<button
+									type="button"
+									onclick={() => (bumperMaxCount = n)}
+									class="flex-1 rounded-lg border py-2 text-xs font-semibold tracking-widest uppercase transition
+										{bumperMaxCount === n
+											? 'border-amber-500/50 bg-amber-500/15 text-amber-300'
+											: 'border-white/5 text-gray-600 hover:border-white/12 hover:text-gray-300'}"
+								>{n}</button>
+							{/each}
+						</div>
+						<p class="text-[10px] text-gray-500 leading-relaxed">
+							{#if bumperMaxCount === 2}
+								Relaxed — a couple of obstacles, easy to track and avoid.
+							{:else if bumperMaxCount === 4}
+								Balanced — enough bumpers to mix up play without chaos.
+							{:else}
+								Chaotic — the arena fills with obstacles for unpredictable rallies.
+							{/if}
+						</p>
+					</div>
+
+					<!-- Phase legend -->
+					<div class="grid grid-cols-3 gap-2 pt-1">
+						<!-- Incoming -->
+						<div class="rounded-lg border border-amber-500/20 bg-amber-500/5 px-2 py-2 text-center">
+							<div class="mb-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-amber-400/60 bg-amber-400/15 text-[9px] font-black text-amber-300">✕</div>
+							<p class="text-[10px] font-semibold text-amber-300 leading-tight">Incoming</p>
+							<p class="text-[9px] text-gray-500 leading-tight">Ghost — passes through</p>
+						</div>
+						<!-- Active -->
+						<div class="rounded-lg border border-amber-500/30 bg-amber-500/8 px-2 py-2 text-center">
+							<div class="mb-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-amber-400 bg-amber-900/70 text-[9px] font-black text-amber-400">✕</div>
+							<p class="text-[10px] font-semibold text-amber-400 leading-tight">Active</p>
+							<p class="text-[9px] text-gray-500 leading-tight">Solid — deflects &amp; speeds ball</p>
+						</div>
+						<!-- Expiring -->
+						<div class="rounded-lg border border-red-500/30 bg-red-500/5 px-2 py-2 text-center">
+							<div class="mb-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-red-400 bg-red-900/60 text-[9px] font-black text-red-400">✕</div>
+							<p class="text-[10px] font-semibold text-red-400 leading-tight">Expiring</p>
+							<p class="text-[9px] text-gray-500 leading-tight">Flashes red before vanishing</p>
+						</div>
+					</div>
+				{/if}
+			</section>
+
+			<!-- ── Power-ups ─────────────────────────────────────────── -->
+			<section class="rounded-xl border border-white/8 bg-gray-900 p-4 space-y-3">
+				<h2 class="text-[10px] font-bold tracking-widest text-gray-500 uppercase">Power-ups</h2>
+				<p class="text-[11px] text-gray-500 leading-relaxed">
+					Collected items apply to the last player who touched the ball.
 				</p>
-			</div>
+				<div class="grid grid-cols-2 gap-x-4 gap-y-2.5">
+					{#each [
+						{ icon: '↑', color: 'bg-amber-400',  name: 'Speed Boost',  desc: 'Ball faster for the hitter' },
+						{ icon: '↓', color: 'bg-indigo-400', name: 'Slow Ball',     desc: 'Ball slower for the hitter' },
+						{ icon: '+', color: 'bg-green-400',  name: 'Big Paddle',    desc: 'Hitter\'s paddle grows' },
+						{ icon: '−', color: 'bg-red-400',    name: 'Tiny Paddle',   desc: 'Hitter\'s paddle shrinks' },
+						{ icon: '⊕', color: 'bg-orange-400', name: 'Split Ball',    desc: 'Spawns a second scoring ball' },
+						{ icon: '?', color: 'bg-pink-400',   name: 'Decoy Ball',    desc: 'Fake ball — doesn\'t score' },
+					] as p}
+						<div class="flex items-start gap-2">
+							<span class="mt-0.5 shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full {p.color} text-[9px] font-black text-black">{p.icon}</span>
+							<div>
+								<p class="text-[11px] font-semibold text-white leading-tight">{p.name}</p>
+								<p class="text-[10px] text-gray-500">{p.desc}</p>
+							</div>
+						</div>
+					{/each}
+				</div>
+				<p class="text-[10px] text-gray-600 border-t border-white/5 pt-2">
+					Opposite effects cancel · Same effect extends duration
+				</p>
+			</section>
 
 			<button
 				type="submit"
-				class="w-full rounded-xl bg-white py-3 text-sm font-bold tracking-widest text-gray-950 uppercase transition hover:bg-gray-200 active:scale-95"
+				class="w-full rounded-xl bg-white py-3 text-sm font-bold tracking-widest text-gray-950 uppercase shadow-lg transition hover:bg-gray-100 active:scale-[0.98]"
 			>
 				Start Game
 			</button>

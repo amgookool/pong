@@ -12,11 +12,17 @@ import { resetAiState, tickAi } from './ai';
 import { initAudio, playSound } from './audio';
 import {
 	BALL_RADIUS,
+	BUMPER_INCOMING_MS,
+	BUMPER_LIFETIME_MS,
+	BUMPER_RADIUS,
+	BUMPER_SPAWN_INTERVAL_MS,
 	CANVAS_HEIGHT,
 	CANVAS_WIDTH,
 	GOAL_FLASH_DURATION_MS,
 	KEYS,
 	PADDLE_HEIGHT,
+	PADDLE_MARGIN,
+	PADDLE_WIDTH,
 	POWERUP_SPAWN_INTERVAL_MS
 } from './constants';
 import {
@@ -26,6 +32,7 @@ import {
 	moveBall,
 	movePaddle,
 	PADDLE_SPEED,
+	resolveBumperCollisions,
 	resolvePaddleCollisions
 } from './physics';
 import {
@@ -36,7 +43,7 @@ import {
 	spawnExtraBall,
 	spawnPowerUp
 } from './powerups';
-import type { AiDifficulty, Ball, GameState, Player } from './types';
+import type { AiDifficulty, Ball, Bumper, GameState, Player } from './types';
 
 // ---------------------------------------------------------------------------
 // Initial state factories
@@ -82,6 +89,9 @@ export const gameState = $state<GameState>({
 	players: [makePlayer(0, 'Player 1'), makePlayer(1, 'Player 2')],
 	ball: makeInitialBall(randomServingPlayer()),
 	powerUps: [],
+	bumpers: [],
+	bumpersEnabled: false,
+	bumperMaxCount: 4,
 	winningScore: 5,
 	winningRounds: 3,
 	currentRound: 1,
@@ -121,7 +131,9 @@ export function startGame(
 	winningScore: number,
 	winningRounds: number,
 	isSinglePlayer = false,
-	aiDifficulty: AiDifficulty = 'medium'
+	aiDifficulty: AiDifficulty = 'medium',
+	bumpersEnabled = false,
+	bumperMaxCount: 2 | 4 | 6 = 4
 ): void {
 	const servingId = randomServingPlayer();
 	const players: [Player, Player] = [makePlayer(0, p1Name), makePlayer(1, p2Name)];
@@ -147,6 +159,11 @@ export function startGame(
 	gameState.lastFrameTime = performance.now();
 	gameState.goalFlash = null;
 	gameState.extraBalls = [];
+	gameState.bumpers = [];
+	gameState.bumpersEnabled = bumpersEnabled;
+	gameState.bumperMaxCount = bumperMaxCount;
+	// Subtract most of the interval so the first bumper appears after ~3 s
+	lastBumperSpawn = performance.now() - BUMPER_SPAWN_INTERVAL_MS + 3000;
 	resetAiState();
 	initAudio(); // fire-and-forget – must be called from a user-gesture stack
 }
@@ -235,6 +252,9 @@ export function continueToNextRound(): void {
 	gameState.players[0].activeEffects = [];
 	gameState.players[1].activeEffects = [];
 	gameState.extraBalls = [];
+	gameState.bumpers = [];
+	// First bumper of the round appears after ~3 s
+	lastBumperSpawn = performance.now() - BUMPER_SPAWN_INTERVAL_MS + 3000;
 
 	const servingId = gameState.ball.servingPlayerId;
 	const player = gameState.players[servingId];
@@ -258,7 +278,39 @@ export function resetToSetup(): void {
 	gameState.currentRound = 1;
 	gameState.goalFlash = null;
 	gameState.extraBalls = [];
+	gameState.bumpers = [];
+	gameState.bumpersEnabled = false;
+	lastBumperSpawn = 0;
 	resetAiState();
+}
+
+// ---------------------------------------------------------------------------
+// Bumper spawn helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Pick a random position for a new bumper, avoiding paddle zones and keeping
+ * a minimum separation from existing bumpers (including incoming ones).
+ * Returns null if no valid position is found after 30 attempts.
+ */
+function randomBumperPosition(existing: Bumper[]): { x: number; y: number } | null {
+	const xMin = PADDLE_MARGIN + PADDLE_WIDTH + BUMPER_RADIUS + 40;
+	const xMax = CANVAS_WIDTH - PADDLE_MARGIN - PADDLE_WIDTH - BUMPER_RADIUS - 40;
+	const yMin = BUMPER_RADIUS + 24;
+	const yMax = CANVAS_HEIGHT - BUMPER_RADIUS - 24;
+	const minSep = BUMPER_RADIUS * 6;
+
+	for (let attempt = 0; attempt < 30; attempt++) {
+		const x = xMin + Math.random() * (xMax - xMin);
+		const y = yMin + Math.random() * (yMax - yMin);
+		const clear = existing.every((b) => {
+			const dx = b.x - x;
+			const dy = b.y - y;
+			return Math.sqrt(dx * dx + dy * dy) >= minSep;
+		});
+		if (clear) return { x, y };
+	}
+	return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -266,6 +318,7 @@ export function resetToSetup(): void {
 // ---------------------------------------------------------------------------
 
 let lastPowerUpSpawn = 0;
+let lastBumperSpawn = 0;
 
 export function loop(now: number): void {
 	if (gameState.phase !== 'playing') return;
@@ -347,6 +400,13 @@ export function loop(now: number): void {
 		playSound('paddle');
 	}
 
+	// Bumper collisions
+	if (gameState.bumpers.length > 0) {
+		const { ball: afterBumper, hit: bumperHit } = resolveBumperCollisions(ball, gameState.bumpers, now);
+		ball = afterBumper;
+		if (bumperHit) playSound('wall');
+	}
+
 	// Power-up collisions (primary ball only)
 	const hitPowerUp = detectPowerUpCollision(ball, gameState.powerUps);
 	if (hitPowerUp) {
@@ -377,6 +437,41 @@ export function loop(now: number): void {
 		lastPowerUpSpawn = now;
 	}
 
+	// Bumper lifecycle
+	if (gameState.bumpersEnabled) {
+		// Remove expired bumpers
+		gameState.bumpers = gameState.bumpers.filter((b) => b.expiresAt > now);
+		// Spawn bumpers up to the max count whenever the interval has elapsed.
+		// All missing slots are filled at once, staggered by 1.5 s so they
+		// don't all expire at the same moment.
+		if (
+			gameState.bumpers.length < gameState.bumperMaxCount &&
+			now - lastBumperSpawn > BUMPER_SPAWN_INTERVAL_MS
+		) {
+			const deficit = gameState.bumperMaxCount - gameState.bumpers.length;
+			const newBumpers: (typeof gameState.bumpers[number])[] = [];
+			for (let i = 0; i < deficit; i++) {
+				const pos = randomBumperPosition([...gameState.bumpers, ...newBumpers]);
+				if (!pos) break;
+				const stagger = i * 1500;
+				const activatesAt = now + BUMPER_INCOMING_MS + stagger;
+				newBumpers.push({
+					id: Math.random().toString(36).slice(2, 9),
+					x: pos.x,
+					y: pos.y,
+					radius: BUMPER_RADIUS,
+					spawnedAt: now,
+					activatesAt,
+					expiresAt: activatesAt + BUMPER_LIFETIME_MS
+				});
+			}
+			if (newBumpers.length > 0) {
+				gameState.bumpers = [...gameState.bumpers, ...newBumpers];
+				lastBumperSpawn = now;
+			}
+		}
+	}
+
 	// Check for goal (primary ball)
 	const goal = checkGoal(ball);
 	if (goal) {
@@ -398,6 +493,12 @@ export function loop(now: number): void {
 			const { ball: afterPaddle, hitterId } = resolvePaddleCollisions(b, gameState.players);
 			b = afterPaddle;
 			if (hitterId !== null) gameState.lastHitterId = hitterId;
+
+			// Bumper collisions for extra balls
+			if (gameState.bumpers.length > 0) {
+				const { ball: afterBumper } = resolveBumperCollisions(b, gameState.bumpers, now);
+				b = afterBumper;
+			}
 
 			const extraGoal = checkGoal(b);
 			if (extraGoal) {

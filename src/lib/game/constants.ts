@@ -34,6 +34,17 @@ export const FRAME_MS = 1000 / 60;
 /** Duration (ms) of the goal flash animation */
 export const GOAL_FLASH_DURATION_MS = 700;
 
+/** Radius (px) of each arena bumper */
+export const BUMPER_RADIUS = 16;
+/** ms the bumper shows as a ghost before becoming solid */
+export const BUMPER_INCOMING_MS = 2000;
+/** ms the bumper stays active after materialising */
+export const BUMPER_LIFETIME_MS = 10000;
+/** ms before expiry that the bumper starts flashing as a warning */
+export const BUMPER_EXPIRING_MS = 2500;
+/** ms between bumper spawn attempts */
+export const BUMPER_SPAWN_INTERVAL_MS = 7000;
+
 /** Keyboard bindings */
 export const KEYS = {
 	/** Player 1 – left paddle */

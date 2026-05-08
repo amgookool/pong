@@ -12,11 +12,14 @@
 		CANVAS_WIDTH,
 		CANVAS_HEIGHT,
 		PADDLE_WIDTH,
-		PADDLE_MARGIN
+		PADDLE_MARGIN,
+		GOAL_FLASH_DURATION_MS,
+		BUMPER_INCOMING_MS,
+		BUMPER_LIFETIME_MS,
+		BUMPER_EXPIRING_MS
 	} from '$lib/game/constants';
 	import { POWERUP_COLORS } from '$lib/game/powerups';
-	import type { PowerUpType } from '$lib/game/types';
-	import { GOAL_FLASH_DURATION_MS } from '$lib/game/constants';
+	import type { PowerUpType, Bumper } from '$lib/game/types';
 
 	let canvas: HTMLCanvasElement;
 	let ctx: CanvasRenderingContext2D;
@@ -93,6 +96,154 @@
 		ctx.beginPath();
 		ctx.arc(x, y, radius, 0, Math.PI * 2);
 		ctx.fill();
+
+		ctx.restore();
+	}
+
+	/**
+	 * Draw a bumper with three distinct phases:
+	 *   incoming  – animated ghost with filling arc and "Xs" countdown label
+	 *   active    – solid amber with depleting arc ring
+	 *   expiring  – solid red, accelerating flash, "Xs" countdown label
+	 */
+	function drawBumper(bumper: Bumper, now: number) {
+		const { x, y, radius, spawnedAt, activatesAt, expiresAt } = bumper;
+		const isIncoming = now < activatesAt;
+		const isExpiring = !isIncoming && now >= expiresAt - BUMPER_EXPIRING_MS;
+
+		ctx.save();
+
+		if (isIncoming) {
+			const incomingDuration = activatesAt - spawnedAt;
+			const progress = Math.min((now - spawnedAt) / incomingDuration, 1);
+			const secsLeft  = Math.ceil((activatesAt - now) / 1000);
+			// Pulsing ghost: oscillates between 40 % and 70 % opacity
+			const ghostAlpha = 0.40 + 0.30 * (0.5 + 0.5 * Math.sin(now / 180));
+
+			// Ghost fill
+			ctx.globalAlpha = ghostAlpha;
+			ctx.fillStyle = '#f59e0b';
+			ctx.shadowColor = '#fbbf24';
+			ctx.shadowBlur = 22;
+			ctx.beginPath();
+			ctx.arc(x, y, radius, 0, Math.PI * 2);
+			ctx.fill();
+
+			// Icon (semi-transparent)
+			ctx.shadowBlur = 0;
+			ctx.fillStyle = '#000000aa';
+			ctx.font = `bold ${radius - 1}px system-ui`;
+			ctx.textAlign = 'center';
+			ctx.textBaseline = 'middle';
+			ctx.fillText('✕', x, y);
+
+			// Dashed outer ring
+			ctx.globalAlpha = 0.55;
+			ctx.strokeStyle = '#fbbf24';
+			ctx.lineWidth = 1.5;
+			ctx.setLineDash([5, 4]);
+			ctx.shadowBlur = 0;
+			ctx.beginPath();
+			ctx.arc(x, y, radius + 7, 0, Math.PI * 2);
+			ctx.stroke();
+			ctx.setLineDash([]);
+
+			// Countdown fill arc (fills clockwise from top)
+			ctx.globalAlpha = 0.95;
+			ctx.strokeStyle = '#fbbf24';
+			ctx.lineWidth = 4;
+			ctx.lineCap = 'round';
+			ctx.shadowColor = '#fbbf24';
+			ctx.shadowBlur = 12;
+			ctx.beginPath();
+			ctx.arc(x, y, radius + 13, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+			ctx.stroke();
+
+			// "Xs" label above the bumper
+			ctx.globalAlpha = 0.9;
+			ctx.shadowBlur = 0;
+			ctx.fillStyle = '#fbbf24';
+			ctx.font = 'bold 11px system-ui';
+			ctx.textAlign = 'center';
+			ctx.textBaseline = 'bottom';
+			ctx.fillText(`${secsLeft}s`, x, y - radius - 18);
+		} else {
+			const lifespan  = expiresAt - activatesAt;
+			const remaining = Math.max(0, (expiresAt - now) / lifespan);
+
+			// Flash alpha when expiring — frequency ramps 4 Hz → 12 Hz
+			let alpha = 1;
+			if (isExpiring) {
+				const fracLeft = Math.max(0, (expiresAt - now) / BUMPER_EXPIRING_MS);
+				const flashHz  = 4 + (1 - fracLeft) * 8;
+				alpha = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(now * 0.001 * flashHz * Math.PI * 2));
+			}
+
+			const glowColor = isExpiring ? '#ef4444' : '#f59e0b';
+			const coreColor = isExpiring ? '#7f1d1d' : '#78350f';
+			const ringColor = isExpiring ? '#ef4444' : '#f59e0b';
+			const iconColor = isExpiring ? '#fca5a5' : '#fbbf24';
+			const glowRgba  = isExpiring ? 'rgba(239,68,68,0.5)' : 'rgba(245,158,11,0.5)';
+
+			ctx.globalAlpha = alpha;
+
+			// Outer pulse glow ring
+			const pulse = 1 + 0.07 * Math.sin((now / 1200) * Math.PI * 2);
+			ctx.strokeStyle = glowRgba;
+			ctx.lineWidth = 2;
+			ctx.shadowColor = glowColor;
+			ctx.shadowBlur = 24;
+			ctx.beginPath();
+			ctx.arc(x, y, radius * pulse + 8, 0, Math.PI * 2);
+			ctx.stroke();
+
+			// Core fill
+			ctx.fillStyle = coreColor;
+			ctx.shadowBlur = 12;
+			ctx.beginPath();
+			ctx.arc(x, y, radius, 0, Math.PI * 2);
+			ctx.fill();
+
+			// Inner ring
+			ctx.strokeStyle = ringColor;
+			ctx.lineWidth = 2;
+			ctx.shadowBlur = 0;
+			ctx.beginPath();
+			ctx.arc(x, y, radius - 3, 0, Math.PI * 2);
+			ctx.stroke();
+
+			// Icon
+			ctx.fillStyle = iconColor;
+			ctx.font = `bold ${radius - 1}px system-ui`;
+			ctx.textAlign = 'center';
+			ctx.textBaseline = 'middle';
+			ctx.fillText('✕', x, y);
+
+			// Lifespan depletion arc (starts full, drains clockwise to empty)
+			if (remaining > 0.01) {
+				ctx.globalAlpha = alpha * 0.95;
+				ctx.strokeStyle = ringColor;
+				ctx.lineWidth = 4;
+				ctx.lineCap = 'round';
+				ctx.shadowColor = ringColor;
+				ctx.shadowBlur = 8;
+				ctx.beginPath();
+				ctx.arc(x, y, radius + 13, -Math.PI / 2, -Math.PI / 2 + remaining * Math.PI * 2);
+				ctx.stroke();
+			}
+
+			// Countdown label when expiring
+			if (isExpiring) {
+				const secsLeft = Math.ceil((expiresAt - now) / 1000);
+				ctx.globalAlpha = alpha;
+				ctx.shadowBlur = 0;
+				ctx.fillStyle = '#fca5a5';
+				ctx.font = 'bold 11px system-ui';
+				ctx.textAlign = 'center';
+				ctx.textBaseline = 'bottom';
+				ctx.fillText(`${secsLeft}s`, x, y - radius - 18);
+			}
+		}
 
 		ctx.restore();
 	}
@@ -225,6 +376,11 @@
 		// Goal flash (drawn early so paddles/ball render on top)
 		if (state.goalFlash) {
 			drawGoalFlash(state.goalFlash.side, state.goalFlash.startedAt, now);
+		}
+
+		// Bumpers (drawn before paddles so they appear behind foreground objects)
+		for (const bumper of state.bumpers) {
+			drawBumper(bumper, now);
 		}
 
 		// Paddles

@@ -58,6 +58,20 @@ export type PowerUp = {
 	spawnedAt: number;
 };
 
+/** A dynamic obstacle in the arena that deflects balls */
+export type Bumper = {
+	id: string;
+	x: number;
+	y: number;
+	radius: number;
+	/** Timestamp when the bumper was created (incoming / ghost phase starts) */
+	spawnedAt: number;
+	/** Timestamp when the bumper becomes solid and can deflect balls */
+	activatesAt: number;
+	/** Timestamp when the bumper disappears */
+	expiresAt: number;
+};
+
 export type GamePhase =
 	| 'setup'      // player name entry + config
 	| 'playing'    // round in progress
@@ -98,4 +112,10 @@ export type GameState = {
 	goalFlash: GoalFlash | null;
 	/** Additional balls in play (split balls and decoys) */
 	extraBalls: Ball[];
+	/** Whether bumper obstacles are enabled for this match */
+	bumpersEnabled: boolean;
+	/** Maximum number of bumpers alive at once (incoming + active) */
+	bumperMaxCount: 2 | 4 | 6;
+	/** Bumper obstacles currently in the arena */
+	bumpers: Bumper[];
 };

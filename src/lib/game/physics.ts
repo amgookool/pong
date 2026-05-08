@@ -16,7 +16,7 @@ import {
 	BALL_MAX_SPEED,
 	BALL_SPEED_INCREMENT
 } from './constants';
-import type { Ball, Player } from './types';
+import type { Ball, Player, Bumper } from './types';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -241,4 +241,67 @@ export function checkGoal(ball: Ball): ScoreEvent {
 		return { scoredById: 0 };
 	}
 	return null;
+}
+
+// ---------------------------------------------------------------------------
+// Bumper collision
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve ball collisions with all bumpers in one pass.
+ *
+ * Only bumpers that have fully materialised (past their `activatesAt` timestamp)
+ * are solid.  Incoming ghost bumpers are skipped so the ball can pass through
+ * them during the warning phase.
+ *
+ * On contact the ball reflects along the collision normal and receives a 10 %
+ * speed nudge (capped at BALL_MAX_SPEED).
+ *
+ * @returns Updated ball and whether any bumper was hit this frame
+ */
+export function resolveBumperCollisions(
+	ball: Ball,
+	bumpers: Bumper[],
+	now: number
+): { ball: Ball; hit: boolean } {
+	let updated = { ...ball };
+	let hit = false;
+
+	for (const bumper of bumpers) {
+		// Incoming bumpers are not yet solid
+		if (now < bumper.activatesAt) continue;
+
+		const dx = updated.x - bumper.x;
+		const dy = updated.y - bumper.y;
+		const dist = Math.sqrt(dx * dx + dy * dy);
+		const minDist = updated.radius + bumper.radius;
+
+		if (dist < minDist && dist > 0) {
+			// Collision normal (from bumper centre toward ball centre)
+			const nx = dx / dist;
+			const ny = dy / dist;
+
+			// Reflect velocity: v' = v - 2(v·n)n
+			const dot = updated.vx * nx + updated.vy * ny;
+			const rvx = updated.vx - 2 * dot * nx;
+			const rvy = updated.vy - 2 * dot * ny;
+
+			// Apply 10 % speed boost, capped at BALL_MAX_SPEED
+			const currentSpeed = magnitude(rvx, rvy);
+			const boosted = normalizeSpeed(rvx, rvy, Math.min(currentSpeed * 1.1, BALL_MAX_SPEED));
+
+			updated = {
+				...updated,
+				vx: boosted.vx,
+				vy: boosted.vy,
+				// Push ball outside the bumper to prevent tunnelling
+				x: bumper.x + nx * (minDist + 1),
+				y: bumper.y + ny * (minDist + 1)
+			};
+
+			hit = true;
+		}
+	}
+
+	return { ball: updated, hit };
 }
