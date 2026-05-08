@@ -60,6 +60,8 @@ export type GamePhase =
 	| 'roundOver'  // a round just ended, showing results
 	| 'gameOver';  // one player has won enough rounds
 
+export type AiDifficulty = 'easy' | 'medium' | 'hard';
+
 /** Full game state – treated as a plain reactive object */
 export type GameState = {
 	players: [Player, Player];
@@ -71,6 +73,9 @@ export type GameState = {
 	winningRounds: number;
 	currentRound: number;
 	phase: GamePhase;
+	/** Whether player 2 is controlled by the AI */
+	isSinglePlayer: boolean;
+	aiDifficulty: AiDifficulty;
 	/** ID (0 or 1) of the player who won the match, or null */
 	matchWinnerId: 0 | 1 | null;
 	/** ID (0 or 1) of the last player to touch the ball */

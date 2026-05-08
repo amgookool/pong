@@ -17,7 +17,8 @@ import {
 	KEYS,
 	POWERUP_SPAWN_INTERVAL_MS
 } from './constants';
-import type { GameState, Player, Ball } from './types';
+import type { GameState, Player, Ball, AiDifficulty } from './types';
+import { tickAi, resetAiState } from './ai';
 import {
 	moveBall,
 	resolvePaddleCollisions,
@@ -81,6 +82,8 @@ export const gameState = $state<GameState>({
 	winningRounds: 3,
 	currentRound: 1,
 	phase: 'setup',
+	isSinglePlayer: false,
+	aiDifficulty: 'medium',
 	matchWinnerId: null,
 	lastHitterId: null,
 	lastFrameTime: 0
@@ -109,7 +112,9 @@ export function startGame(
 	p1Name: string,
 	p2Name: string,
 	winningScore: number,
-	winningRounds: number
+	winningRounds: number,
+	isSinglePlayer = false,
+	aiDifficulty: AiDifficulty = 'medium'
 ): void {
 	const servingId = randomServingPlayer();
 	const players: [Player, Player] = [makePlayer(0, p1Name), makePlayer(1, p2Name)];
@@ -128,9 +133,12 @@ export function startGame(
 	gameState.winningRounds = winningRounds;
 	gameState.currentRound = 1;
 	gameState.phase = 'playing';
+	gameState.isSinglePlayer = isSinglePlayer;
+	gameState.aiDifficulty = aiDifficulty;
 	gameState.matchWinnerId = null;
 	gameState.lastHitterId = null;
 	gameState.lastFrameTime = performance.now();
+	resetAiState();
 }
 
 /** Called when spacebar is pressed to launch the ball */
@@ -207,6 +215,7 @@ export function continueToNextRound(): void {
 	gameState.ball.y = pos.y;
 	gameState.phase = 'playing';
 	gameState.lastFrameTime = performance.now();
+	resetAiState();
 }
 
 /** Reset everything back to setup screen */
@@ -219,6 +228,7 @@ export function resetToSetup(): void {
 	gameState.matchWinnerId = null;
 	gameState.lastHitterId = null;
 	gameState.currentRound = 1;
+	resetAiState();
 }
 
 // ---------------------------------------------------------------------------
@@ -245,11 +255,22 @@ export function loop(now: number): void {
 	if (keysHeld.has(KEYS.P1_DOWN)) {
 		gameState.players[0].paddleY = movePaddle(p0.paddleY, PADDLE_SPEED, p0.paddleHeight);
 	}
-	if (keysHeld.has(KEYS.P2_UP)) {
-		gameState.players[1].paddleY = movePaddle(p1.paddleY, -PADDLE_SPEED, p1.paddleHeight);
-	}
-	if (keysHeld.has(KEYS.P2_DOWN)) {
-		gameState.players[1].paddleY = movePaddle(p1.paddleY, PADDLE_SPEED, p1.paddleHeight);
+	if (gameState.isSinglePlayer) {
+		// AI controls player 2 – only move when ball is in play
+		if (!gameState.ball.isServing) {
+			gameState.players[1].paddleY = tickAi(
+				gameState.players[1],
+				gameState.ball,
+				gameState.aiDifficulty
+			);
+		}
+	} else {
+		if (keysHeld.has(KEYS.P2_UP)) {
+			gameState.players[1].paddleY = movePaddle(p1.paddleY, -PADDLE_SPEED, p1.paddleHeight);
+		}
+		if (keysHeld.has(KEYS.P2_DOWN)) {
+			gameState.players[1].paddleY = movePaddle(p1.paddleY, PADDLE_SPEED, p1.paddleHeight);
+		}
 	}
 
 	// --- expire player effects ---
@@ -258,6 +279,13 @@ export function loop(now: number): void {
 
 	// --- ball physics (skip if still serving) ---
 	if (gameState.ball.isServing) {
+		// Pause power-up effect timers while waiting for the serve by pushing
+		// expiresAt forward by the elapsed frame time.
+		for (const player of gameState.players) {
+			if (player.activeEffect) {
+				player.activeEffect.expiresAt += delta;
+			}
+		}
 		// Keep ball glued to serving paddle
 		const pos = getServingBallState(gameState.players[gameState.ball.servingPlayerId]);
 		gameState.ball.x = pos.x;

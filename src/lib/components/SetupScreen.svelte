@@ -1,21 +1,34 @@
 <script lang="ts">
 	/**
-	 * SetupScreen – collects player names and match settings before the game starts.
+	 * SetupScreen – collects player names, mode, difficulty, and match settings.
 	 */
 	import { startGame } from '$lib/game/store.svelte';
+	import type { AiDifficulty } from '$lib/game/types';
 
+	type Mode = 'single' | 'two';
+
+	let mode = $state<Mode>('single');
 	let p1Name = $state('Player 1');
 	let p2Name = $state('Player 2');
+	let aiDifficulty = $state<AiDifficulty>('medium');
 	let winningScore = $state(5);
 	let winningRounds = $state(3);
+
+	const difficulties: { value: AiDifficulty; label: string; desc: string }[] = [
+		{ value: 'easy',   label: 'Easy',   desc: 'Relaxed — great for beginners' },
+		{ value: 'medium', label: 'Medium', desc: 'Competitive but beatable' },
+		{ value: 'hard',   label: 'Hard',   desc: 'Relentless — good luck' }
+	];
 
 	function handleStart(e: Event) {
 		e.preventDefault();
 		startGame(
 			p1Name.trim() || 'Player 1',
-			p2Name.trim() || 'Player 2',
+			mode === 'two' ? (p2Name.trim() || 'Player 2') : 'CPU',
 			winningScore,
-			winningRounds
+			winningRounds,
+			mode === 'single',
+			aiDifficulty
 		);
 	}
 </script>
@@ -25,56 +38,114 @@
 		class="w-full max-w-lg rounded-2xl border border-white/10 bg-gray-900 p-10 shadow-2xl shadow-black/60"
 	>
 		<!-- Title -->
-		<div class="mb-10 text-center">
+		<div class="mb-8 text-center">
 			<h1 class="text-5xl font-black tracking-widest text-white">PONG</h1>
-			<p class="mt-2 text-sm tracking-widest text-gray-400 uppercase">Two Player Edition</p>
 		</div>
 
-		<form onsubmit={handleStart} class="space-y-8">
-			<!-- Player names -->
-			<div class="grid grid-cols-2 gap-4">
-				<!-- Player 1 -->
+		<!-- Mode toggle -->
+		<div class="mb-8 flex rounded-xl border border-white/10 bg-gray-800/60 p-1">
+			<button
+				type="button"
+				onclick={() => (mode = 'single')}
+				class="flex-1 rounded-lg py-2.5 text-sm font-semibold tracking-widest uppercase transition
+					{mode === 'single'
+						? 'bg-white text-gray-950 shadow'
+						: 'text-gray-400 hover:text-white'}"
+			>
+				Single Player
+			</button>
+			<button
+				type="button"
+				onclick={() => (mode = 'two')}
+				class="flex-1 rounded-lg py-2.5 text-sm font-semibold tracking-widest uppercase transition
+					{mode === 'two'
+						? 'bg-white text-gray-950 shadow'
+						: 'text-gray-400 hover:text-white'}"
+			>
+				Two Players
+			</button>
+		</div>
+
+		<form onsubmit={handleStart} class="space-y-7">
+
+			<!-- Player name(s) -->
+			{#if mode === 'single'}
 				<div class="space-y-2">
-					<label for="p1name" class="block text-xs font-semibold tracking-widest text-cyan-400 uppercase">
-						Player 1
+					<label for="p1name-sp" class="block text-xs font-semibold tracking-widest text-cyan-400 uppercase">
+						Your Name
 					</label>
 					<input
-						id="p1name"
+						id="p1name-sp"
 						type="text"
 						bind:value={p1Name}
 						maxlength="16"
 						placeholder="Player 1"
-						class="w-full rounded-lg border border-white/10 bg-gray-800 px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none ring-0 transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+						class="w-full rounded-lg border border-white/10 bg-gray-800 px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
 					/>
 					<p class="text-xs text-gray-500">Controls: <kbd class="rounded bg-gray-700 px-1">W</kbd> / <kbd class="rounded bg-gray-700 px-1">S</kbd></p>
 				</div>
 
-				<!-- Player 2 -->
-				<div class="space-y-2">
-					<label for="p2name" class="block text-xs font-semibold tracking-widest text-violet-400 uppercase">
-						Player 2
-					</label>
-					<input
-						id="p2name"
-						type="text"
-						bind:value={p2Name}
-						maxlength="16"
-						placeholder="Player 2"
-						class="w-full rounded-lg border border-white/10 bg-gray-800 px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none ring-0 transition focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
-					/>
-					<p class="text-xs text-gray-500">Controls: <kbd class="rounded bg-gray-700 px-1">↑</kbd> / <kbd class="rounded bg-gray-700 px-1">↓</kbd></p>
+				<!-- Difficulty -->
+				<div class="space-y-3">
+					<p class="text-xs font-semibold tracking-widest text-gray-400 uppercase">AI Difficulty</p>
+					<div class="grid grid-cols-3 gap-2">
+						{#each difficulties as d}
+							<button
+								type="button"
+								onclick={() => (aiDifficulty = d.value)}
+								class="flex flex-col items-center gap-1 rounded-xl border py-3 px-2 text-xs font-semibold tracking-widest uppercase transition
+									{aiDifficulty === d.value
+										? 'border-white/30 bg-white/10 text-white'
+										: 'border-white/5 text-gray-500 hover:border-white/15 hover:text-gray-300'}"
+							>
+								{d.label}
+								<span class="text-[9px] font-normal normal-case tracking-normal text-gray-500 text-center leading-tight">{d.desc}</span>
+							</button>
+						{/each}
+					</div>
 				</div>
-			</div>
+			{:else}
+				<div class="grid grid-cols-2 gap-4">
+					<!-- Player 1 -->
+					<div class="space-y-2">
+						<label for="p1name" class="block text-xs font-semibold tracking-widest text-cyan-400 uppercase">
+							Player 1
+						</label>
+						<input
+							id="p1name"
+							type="text"
+							bind:value={p1Name}
+							maxlength="16"
+							placeholder="Player 1"
+							class="w-full rounded-lg border border-white/10 bg-gray-800 px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+						/>
+						<p class="text-xs text-gray-500">Controls: <kbd class="rounded bg-gray-700 px-1">W</kbd> / <kbd class="rounded bg-gray-700 px-1">S</kbd></p>
+					</div>
+
+					<!-- Player 2 -->
+					<div class="space-y-2">
+						<label for="p2name" class="block text-xs font-semibold tracking-widest text-violet-400 uppercase">
+							Player 2
+						</label>
+						<input
+							id="p2name"
+							type="text"
+							bind:value={p2Name}
+							maxlength="16"
+							placeholder="Player 2"
+							class="w-full rounded-lg border border-white/10 bg-gray-800 px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+						/>
+						<p class="text-xs text-gray-500">Controls: <kbd class="rounded bg-gray-700 px-1">↑</kbd> / <kbd class="rounded bg-gray-700 px-1">↓</kbd></p>
+					</div>
+				</div>
+			{/if}
 
 			<!-- Match settings -->
-			<div class="space-y-4">
+			<div class="space-y-3">
 				<h2 class="text-xs font-semibold tracking-widest text-gray-400 uppercase">Match Settings</h2>
-
 				<div class="grid grid-cols-2 gap-4">
 					<div class="space-y-2">
-						<label for="winning-score" class="block text-xs text-gray-400">
-							Goals to win a round
-						</label>
+						<label for="winning-score" class="block text-xs text-gray-400">Goals to win a round</label>
 						<input
 							id="winning-score"
 							type="number"
@@ -85,9 +156,7 @@
 						/>
 					</div>
 					<div class="space-y-2">
-						<label for="winning-rounds" class="block text-xs text-gray-400">
-							Rounds to win the match
-						</label>
+						<label for="winning-rounds" class="block text-xs text-gray-400">Rounds to win the match</label>
 						<input
 							id="winning-rounds"
 							type="number"

@@ -3,7 +3,7 @@
 	 * ScoreBoard – displays current round scores, round wins, and active effects
 	 * for both players.  Rendered as an overlay above the game canvas.
 	 */
-	import { gameState } from '$lib/game/store.svelte';
+	import { gameState, resetToSetup } from '$lib/game/store.svelte';
 	import { POWERUP_LABELS, POWERUP_COLORS } from '$lib/game/powerups';
 
 	const p1 = $derived(gameState.players[0]);
@@ -36,9 +36,15 @@
 	</div>
 
 	<!-- Centre info -->
-	<div class="flex flex-col items-center gap-0.5">
+	<div class="pointer-events-auto flex flex-col items-center gap-1.5">
 		<span class="text-xs tracking-widest text-gray-500 uppercase">Round {gameState.currentRound}</span>
 		<span class="text-xs text-gray-600">of {gameState.winningRounds}</span>
+		<button
+			onclick={resetToSetup}
+			class="mt-1 rounded-lg border border-white/10 px-3 py-1 text-[10px] font-semibold tracking-widest text-gray-500 uppercase transition hover:border-white/20 hover:text-gray-300 active:scale-95"
+		>
+			Quit
+		</button>
 	</div>
 
 	<!-- Player 2 (right) -->

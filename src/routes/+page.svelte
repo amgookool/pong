@@ -28,7 +28,11 @@
 
 		<!-- Controls hint -->
 		<p class="shrink-0 pb-3 text-center text-xs tracking-widest text-gray-600 uppercase select-none">
-			P1: W / S &nbsp;·&nbsp; P2: ↑ / ↓ &nbsp;·&nbsp; Serve: Space
+			{#if gameState.isSinglePlayer}
+				W / S to move &nbsp;·&nbsp; Space to serve
+			{:else}
+				P1: W / S &nbsp;·&nbsp; P2: ↑ / ↓ &nbsp;·&nbsp; Space to serve
+			{/if}
 		</p>
 	</div>
 {/if}
