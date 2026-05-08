@@ -25,13 +25,19 @@
 					></span>
 				{/each}
 			</div>
-			<!-- Active effect badge -->
-			<span
-				class="rounded-full px-2 py-0 text-[9px] font-bold tracking-widest uppercase text-gray-950 leading-4"
-				style="background-color: {p1.activeEffect ? POWERUP_COLORS[p1.activeEffect.type] : 'transparent'}; visibility: {p1.activeEffect ? 'visible' : 'hidden'};"
-			>
-				{p1.activeEffect ? POWERUP_LABELS[p1.activeEffect.type] : ' '}
-			</span>
+			<!-- Active effect badges (up to 2: one SIZE, one SPEED) -->
+			<div class="flex gap-1 h-4 items-center">
+				{#each p1.activeEffects as effect (effect.type)}
+					<span
+						class="rounded-full px-2 text-[9px] font-bold tracking-widest uppercase text-gray-950 leading-4"
+						style="background-color: {POWERUP_COLORS[effect.type]}"
+					>
+						{POWERUP_LABELS[effect.type]}
+					</span>
+				{:else}
+					<span class="invisible rounded-full px-2 text-[9px] leading-4">&nbsp;</span>
+				{/each}
+			</div>
 		</div>
 	</div>
 
@@ -59,13 +65,19 @@
 					></span>
 				{/each}
 			</div>
-			<!-- Active effect badge -->
-			<span
-				class="rounded-full px-2 py-0 text-[9px] font-bold tracking-widest uppercase text-gray-950 leading-4"
-				style="background-color: {p2.activeEffect ? POWERUP_COLORS[p2.activeEffect.type] : 'transparent'}; visibility: {p2.activeEffect ? 'visible' : 'hidden'};"
-			>
-				{p2.activeEffect ? POWERUP_LABELS[p2.activeEffect.type] : ' '}
-			</span>
+			<!-- Active effect badges (up to 2: one SIZE, one SPEED) -->
+			<div class="flex gap-1 h-4 items-center justify-end">
+				{#each p2.activeEffects as effect (effect.type)}
+					<span
+						class="rounded-full px-2 text-[9px] font-bold tracking-widest uppercase text-gray-950 leading-4"
+						style="background-color: {POWERUP_COLORS[effect.type]}"
+					>
+						{POWERUP_LABELS[effect.type]}
+					</span>
+				{:else}
+					<span class="invisible rounded-full px-2 text-[9px] leading-4">&nbsp;</span>
+				{/each}
+			</div>
 		</div>
 		<span class="text-4xl font-black tabular-nums text-white leading-none shrink-0">{p2.score}</span>
 	</div>

@@ -13,15 +13,17 @@ import {
 	POWERUP_SPEED_FACTOR,
 	POWERUP_SIZE_FACTOR,
 	POWERUP_EFFECT_DURATION_MS,
-	PADDLE_HEIGHT
+	PADDLE_HEIGHT,
+	BALL_BASE_SPEED,
+	BALL_RADIUS
 } from './constants';
-import type { Ball, Player, PowerUp, PowerUpType } from './types';
+import type { Ball, Player, PowerUp, PowerUpType, ActiveEffect } from './types';
 
 // ---------------------------------------------------------------------------
 // Spawning
 // ---------------------------------------------------------------------------
 
-const POWER_UP_TYPES: PowerUpType[] = ['SPEED_UP', 'SPEED_DOWN', 'SIZE_UP', 'SIZE_DOWN'];
+const POWER_UP_TYPES: PowerUpType[] = ['SPEED_UP', 'SPEED_DOWN', 'SIZE_UP', 'SIZE_DOWN', 'SPLIT_BALL', 'FAKE_BALL'];
 
 /**
  * Create a new randomly positioned power-up.
@@ -82,59 +84,106 @@ export function detectPowerUpCollision(ball: Ball, powerUps: PowerUp[]): PowerUp
 }
 
 // ---------------------------------------------------------------------------
-// Applying / expiring effects
+// Extra ball spawning (SPLIT_BALL / FAKE_BALL)
 // ---------------------------------------------------------------------------
 
 /**
- * Apply the effect of a collected power-up to the appropriate player.
- * The LAST player who touched the ball receives the effect.
- *
- * @param player  - The player to modify (should be the last hitter)
- * @param type    - The power-up type collected
- * @param now     - Current timestamp (ms)
- * @returns Updated player with the new effect applied
+ * Spawn an extra ball at the current ball's position.
+ * Used by SPLIT_BALL (real, counts for scoring) and FAKE_BALL (decoy, does not score).
+ * The extra ball launches in a random direction that avoids being purely horizontal.
  */
-export function applyEffect(player: Player, type: PowerUpType, now: number): Player {
-	const expiresAt = now + POWERUP_EFFECT_DURATION_MS;
-	let speedMultiplier = player.speedMultiplier;
-	let paddleHeight = player.paddleHeight;
-
-	switch (type) {
-		case 'SPEED_UP':
-			speedMultiplier = POWERUP_SPEED_FACTOR;
-			break;
-		case 'SPEED_DOWN':
-			speedMultiplier = 1 / POWERUP_SPEED_FACTOR;
-			break;
-		case 'SIZE_UP':
-			paddleHeight = PADDLE_HEIGHT * POWERUP_SIZE_FACTOR;
-			break;
-		case 'SIZE_DOWN':
-			paddleHeight = PADDLE_HEIGHT / POWERUP_SIZE_FACTOR;
-			break;
-	}
-
+export function spawnExtraBall(from: Ball, isDecoy: boolean, now: number): Ball {
+	// Random angle in 40–140° range avoids near-instant scoring from spawn position
+	const angle = (Math.PI * 40) / 180 + Math.random() * (Math.PI * 100) / 180;
+	const flipX = Math.random() < 0.5 ? 1 : -1;
+	const flipY = Math.random() < 0.5 ? 1 : -1;
 	return {
-		...player,
-		speedMultiplier,
-		paddleHeight,
-		activeEffect: { type, expiresAt }
+		id: `extra-${now}-${Math.random().toString(36).slice(2)}`,
+		isDecoy,
+		x: from.x,
+		y: from.y,
+		vx: Math.cos(angle) * BALL_BASE_SPEED * flipX,
+		vy: Math.sin(angle) * BALL_BASE_SPEED * flipY,
+		radius: BALL_RADIUS,
+		isServing: false,
+		servingPlayerId: from.servingPlayerId
 	};
 }
 
-/**
- * Remove expired effects from a player, resetting stats to baseline.
- */
-export function expirePlayerEffect(player: Player, now: number): Player {
-	if (!player.activeEffect || now < player.activeEffect.expiresAt) {
-		return player;
+// ---------------------------------------------------------------------------
+// Applying / expiring effects
+// ---------------------------------------------------------------------------
+
+/** Returns the opposing type that cancels this one out */
+function getOppositeType(type: PowerUpType): PowerUpType {
+	switch (type) {
+		case 'SPEED_UP':   return 'SPEED_DOWN';
+		case 'SPEED_DOWN': return 'SPEED_UP';
+		case 'SIZE_UP':    return 'SIZE_DOWN';
+		case 'SIZE_DOWN':  return 'SIZE_UP';
+		// Ball-spawning types have no player-stat opposite
+		case 'SPLIT_BALL': return 'FAKE_BALL';
+		case 'FAKE_BALL':  return 'SPLIT_BALL';
 	}
-	return {
-		...player,
-		speedMultiplier: 1,
-		paddleHeight: PADDLE_HEIGHT,
-		activeEffect: null
-	};
+}
+
+/** Recompute a player's stat values from the current effect stack */
+function computePlayerStats(effects: ActiveEffect[]): { speedMultiplier: number; paddleHeight: number } {
+	let speedMultiplier = 1;
+	let paddleHeight = PADDLE_HEIGHT;
+	for (const e of effects) {
+		switch (e.type) {
+			case 'SPEED_UP':   speedMultiplier = POWERUP_SPEED_FACTOR; break;
+			case 'SPEED_DOWN': speedMultiplier = 1 / POWERUP_SPEED_FACTOR; break;
+			case 'SIZE_UP':    paddleHeight = PADDLE_HEIGHT * POWERUP_SIZE_FACTOR; break;
+			case 'SIZE_DOWN':  paddleHeight = PADDLE_HEIGHT / POWERUP_SIZE_FACTOR; break;
+			case 'SPLIT_BALL':
+			case 'FAKE_BALL':  break; // ball-spawning types don’t affect player stats
+		}
+	}
+	return { speedMultiplier, paddleHeight };
+}
+
+/**
+ * Apply the effect of a collected power-up to a player, with smart stacking:
+ *
+ * - **Opposite type** (e.g. SIZE_UP hits a player with SIZE_DOWN): both effects
+ *   cancel and the paddle returns to normal.
+ * - **Same type** (e.g. SIZE_UP hits a player already under SIZE_UP): the
+ *   existing effect's duration is extended by POWERUP_EFFECT_DURATION_MS.
+ * - **Different category** (e.g. SIZE_UP + SPEED_UP): both coexist independently.
+ *
+ * At most one SIZE effect and one SPEED effect can be active at the same time.
+ */
+export function applyEffect(player: Player, type: PowerUpType, now: number): Player {
+	const opposite = getOppositeType(type);
+	let effects = player.activeEffects;
+
+	if (effects.some((e) => e.type === opposite)) {
+		// Cancel: strip the opposing effect, new effect does not get applied
+		effects = effects.filter((e) => e.type !== opposite);
+	} else if (effects.some((e) => e.type === type)) {
+		// Extend: push the expiry of the matching effect forward
+		effects = effects.map((e) =>
+			e.type === type ? { ...e, expiresAt: e.expiresAt + POWERUP_EFFECT_DURATION_MS } : e
+		);
+	} else {
+		// New: add fresh effect to the stack
+		effects = [...effects, { type, expiresAt: now + POWERUP_EFFECT_DURATION_MS }];
+	}
+
+	const { speedMultiplier, paddleHeight } = computePlayerStats(effects);
+	return { ...player, activeEffects: effects, speedMultiplier, paddleHeight };
+}
+
+/**
+ * Remove any effects whose expiry timestamp has passed, recomputing stats.
+ */
+export function expirePlayerEffects(player: Player, now: number): Player {
+	const remaining = player.activeEffects.filter((e) => now < e.expiresAt);
+	if (remaining.length === player.activeEffects.length) return player;
+	const { speedMultiplier, paddleHeight } = computePlayerStats(remaining);
+	return { ...player, activeEffects: remaining, speedMultiplier, paddleHeight };
 }
 
 // ---------------------------------------------------------------------------
@@ -146,7 +195,9 @@ export const POWERUP_LABELS: Record<PowerUpType, string> = {
 	SPEED_UP: 'Speed Boost',
 	SPEED_DOWN: 'Slow Ball',
 	SIZE_UP: 'Big Paddle',
-	SIZE_DOWN: 'Tiny Paddle'
+	SIZE_DOWN: 'Tiny Paddle',
+	SPLIT_BALL: 'Split Ball',
+	FAKE_BALL: 'Decoy Ball'
 };
 
 /** Colour associated with each power-up type (Tailwind-compatible hex) */
@@ -154,5 +205,7 @@ export const POWERUP_COLORS: Record<PowerUpType, string> = {
 	SPEED_UP: '#f59e0b',   // amber
 	SPEED_DOWN: '#6366f1', // indigo
 	SIZE_UP: '#22c55e',    // green
-	SIZE_DOWN: '#ef4444'   // red
+	SIZE_DOWN: '#ef4444',  // red
+	SPLIT_BALL: '#f97316', // orange
+	FAKE_BALL: '#ec4899'   // pink
 };

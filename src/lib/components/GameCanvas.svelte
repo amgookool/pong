@@ -139,7 +139,9 @@
 			SPEED_UP: '↑',
 			SPEED_DOWN: '↓',
 			SIZE_UP: '+',
-			SIZE_DOWN: '−'
+			SIZE_DOWN: '−',
+			SPLIT_BALL: '⊕',
+			FAKE_BALL: '?'
 		};
 		ctx.fillText(icons[type], x, y);
 
@@ -239,7 +241,12 @@
 			drawPowerUp(pu.x, pu.y, pu.radius, pu.type, now, pu.spawnedAt);
 		}
 
-		// Ball
+		// Extra balls (split balls and decoys – rendered identically to primary)
+		for (const eb of state.extraBalls) {
+			drawBall(eb.x, eb.y, eb.radius, false);
+		}
+
+		// Primary ball
 		drawBall(ball.x, ball.y, ball.radius, ball.isServing);
 
 		// Serve hint

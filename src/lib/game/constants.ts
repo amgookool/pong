@@ -18,7 +18,7 @@ export const BALL_SPEED_INCREMENT = 0.25;
 /** Power-up / power-down */
 export const POWERUP_RADIUS = 14;
 /** Milliseconds a power-up stays visible before disappearing */
-export const POWERUP_LIFETIME_MS = 7000;
+export const POWERUP_LIFETIME_MS = 9500;
 /** Milliseconds between new power-up spawns */
 export const POWERUP_SPAWN_INTERVAL_MS = 5000;
 /** Factor applied to ball speed for SPEED_UP / SPEED_DOWN */
@@ -26,7 +26,7 @@ export const POWERUP_SPEED_FACTOR = 1.4;
 /** Factor applied to paddle height for SIZE_UP / SIZE_DOWN */
 export const POWERUP_SIZE_FACTOR = 1.5;
 /** Duration (ms) a power-up effect lasts on the player */
-export const POWERUP_EFFECT_DURATION_MS = 5000;
+export const POWERUP_EFFECT_DURATION_MS = 12000;
 
 /** Target frame time for the physics loop (60 fps) */
 export const FRAME_MS = 1000 / 60;

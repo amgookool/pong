@@ -15,8 +15,8 @@ export type Player = {
 	paddleHeight: number;
 	/** Current ball-speed multiplier (may be modified by power-ups) */
 	speedMultiplier: number;
-	/** Active power-up effect, if any */
-	activeEffect: ActiveEffect | null;
+	/** Active power-up effects (stacked; at most one per category: SIZE and SPEED) */
+	activeEffects: ActiveEffect[];
 	side: PlayerSide;
 };
 
@@ -29,6 +29,10 @@ export type ActiveEffect = {
 
 /** The game ball */
 export type Ball = {
+	/** Unique identifier – primary ball uses 'primary' */
+	id: string;
+	/** True for decoy balls spawned by FAKE_BALL; they don't score */
+	isDecoy: boolean;
 	x: number;
 	y: number;
 	vx: number;
@@ -40,7 +44,7 @@ export type Ball = {
 	servingPlayerId: 0 | 1;
 };
 
-export type PowerUpType = 'SPEED_UP' | 'SPEED_DOWN' | 'SIZE_UP' | 'SIZE_DOWN';
+export type PowerUpType = 'SPEED_UP' | 'SPEED_DOWN' | 'SIZE_UP' | 'SIZE_DOWN' | 'SPLIT_BALL' | 'FAKE_BALL';
 
 /** A collectible item on the canvas */
 export type PowerUp = {
@@ -92,4 +96,6 @@ export type GameState = {
 	lastFrameTime: number;
 	/** Active goal flash animation, or null */
 	goalFlash: GoalFlash | null;
+	/** Additional balls in play (split balls and decoys) */
+	extraBalls: Ball[];
 };

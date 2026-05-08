@@ -34,7 +34,8 @@ import {
 	expirePowerUps,
 	detectPowerUpCollision,
 	applyEffect,
-	expirePlayerEffect
+	spawnExtraBall,
+	expirePlayerEffects
 } from './powerups';
 import { SvelteSet } from 'svelte/reactivity';
 
@@ -51,13 +52,15 @@ function makePlayer(id: 0 | 1, name: string): Player {
 		paddleY: CANVAS_HEIGHT / 2 - PADDLE_HEIGHT / 2,
 		paddleHeight: PADDLE_HEIGHT,
 		speedMultiplier: 1,
-		activeEffect: null,
+		activeEffects: [],
 		side: id === 0 ? 'left' : 'right'
 	};
 }
 
 function makeInitialBall(servingPlayerId: 0 | 1): Ball {
 	return {
+		id: 'primary',
+		isDecoy: false,
 		x: CANVAS_WIDTH / 2,
 		y: CANVAS_HEIGHT / 2,
 		vx: 0,
@@ -89,7 +92,8 @@ export const gameState = $state<GameState>({
 	matchWinnerId: null,
 	lastHitterId: null,
 	lastFrameTime: 0,
-	goalFlash: null
+	goalFlash: null,
+	extraBalls: []
 });
 
 // ---------------------------------------------------------------------------
@@ -143,6 +147,7 @@ export function startGame(
 	gameState.lastHitterId = null;
 	gameState.lastFrameTime = performance.now();
 	gameState.goalFlash = null;
+	gameState.extraBalls = [];
 	resetAiState();
 }
 
@@ -171,6 +176,9 @@ function handleGoal(scoredById: 0 | 1, now: number): void {
 		startedAt: now
 	};
 
+	// Clear all extra balls – gameplay returns to single-ball on any goal
+	gameState.extraBalls = [];
+
 	if (gameState.players[scoredById].score >= gameState.winningScore) {
 		// Round won
 		gameState.players[scoredById].wins += 1;
@@ -194,6 +202,8 @@ function resetBallToPlayer(playerId: 0 | 1): void {
 	const player = gameState.players[playerId];
 	const pos = getServingBallState(player);
 	gameState.ball = {
+		id: 'primary',
+		isDecoy: false,
 		x: pos.x,
 		y: pos.y,
 		vx: 0,
@@ -217,8 +227,9 @@ export function continueToNextRound(): void {
 	gameState.players[1].paddleHeight = PADDLE_HEIGHT;
 	gameState.players[0].speedMultiplier = 1;
 	gameState.players[1].speedMultiplier = 1;
-	gameState.players[0].activeEffect = null;
-	gameState.players[1].activeEffect = null;
+	gameState.players[0].activeEffects = [];
+	gameState.players[1].activeEffects = [];
+	gameState.extraBalls = [];
 
 	const servingId = gameState.ball.servingPlayerId;
 	const player = gameState.players[servingId];
@@ -241,6 +252,7 @@ export function resetToSetup(): void {
 	gameState.lastHitterId = null;
 	gameState.currentRound = 1;
 	gameState.goalFlash = null;
+	gameState.extraBalls = [];
 	resetAiState();
 }
 
@@ -274,11 +286,15 @@ export function loop(now: number): void {
 		gameState.players[0].paddleY = movePaddle(p0.paddleY, PADDLE_SPEED, p0.paddleHeight);
 	}
 	if (gameState.isSinglePlayer) {
-		// AI controls player 2 – only move when ball is in play
+		// AI controls player 2 – track the most threatening ball (furthest right)
 		if (!gameState.ball.isServing) {
+			let trackBall = gameState.ball;
+			for (const eb of gameState.extraBalls) {
+				if (eb.x > trackBall.x) trackBall = eb;
+			}
 			gameState.players[1].paddleY = tickAi(
 				gameState.players[1],
-				gameState.ball,
+				trackBall,
 				gameState.aiDifficulty
 			);
 		}
@@ -292,16 +308,16 @@ export function loop(now: number): void {
 	}
 
 	// --- expire player effects ---
-	gameState.players[0] = expirePlayerEffect(gameState.players[0], now);
-	gameState.players[1] = expirePlayerEffect(gameState.players[1], now);
+	gameState.players[0] = expirePlayerEffects(gameState.players[0], now);
+	gameState.players[1] = expirePlayerEffects(gameState.players[1], now);
 
 	// --- ball physics (skip if still serving) ---
 	if (gameState.ball.isServing) {
 		// Pause power-up effect timers while waiting for the serve by pushing
 		// expiresAt forward by the elapsed frame time.
 		for (const player of gameState.players) {
-			if (player.activeEffect) {
-				player.activeEffect.expiresAt += delta;
+			for (const effect of player.activeEffects) {
+				effect.expiresAt += delta;
 			}
 		}
 		// Keep ball glued to serving paddle
@@ -321,11 +337,22 @@ export function loop(now: number): void {
 		gameState.lastHitterId = hitterId;
 	}
 
-	// Power-up collisions
+	// Power-up collisions (primary ball only)
 	const hitPowerUp = detectPowerUpCollision(ball, gameState.powerUps);
-	if (hitPowerUp && gameState.lastHitterId !== null) {
-		const targetId = gameState.lastHitterId;
-		gameState.players[targetId] = applyEffect(gameState.players[targetId], hitPowerUp.type, now);
+	if (hitPowerUp) {
+		if (hitPowerUp.type === 'SPLIT_BALL') {
+			// Spawn a real extra ball – counts for scoring
+			gameState.extraBalls = [...gameState.extraBalls, spawnExtraBall(ball, false, now)];
+		} else if (hitPowerUp.type === 'FAKE_BALL') {
+			// Spawn a decoy ball – bounces normally but does not score
+			gameState.extraBalls = [...gameState.extraBalls, spawnExtraBall(ball, true, now)];
+		} else if (gameState.lastHitterId !== null) {
+			gameState.players[gameState.lastHitterId] = applyEffect(
+				gameState.players[gameState.lastHitterId],
+				hitPowerUp.type,
+				now
+			);
+		}
 		// Remove the collected power-up
 		gameState.powerUps = gameState.powerUps.filter((p) => p.id !== hitPowerUp.id);
 	}
@@ -339,11 +366,44 @@ export function loop(now: number): void {
 		lastPowerUpSpawn = now;
 	}
 
-	// Check for goal
+	// Check for goal (primary ball)
 	const goal = checkGoal(ball);
 	if (goal) {
 		handleGoal(goal.scoredById, now);
 	} else {
 		gameState.ball = ball;
+	}
+
+	// --- extra ball physics ---
+	// Run only while the primary ball is in play and no goal was scored this frame.
+	if (gameState.phase === 'playing' && gameState.extraBalls.length > 0) {
+		const aliveExtras: Ball[] = [];
+		let extraGoalScored = false;
+
+		for (const eb of gameState.extraBalls) {
+			if (extraGoalScored) break;
+
+			let b = moveBall(eb);
+			const { ball: afterPaddle, hitterId } = resolvePaddleCollisions(b, gameState.players);
+			b = afterPaddle;
+			if (hitterId !== null) gameState.lastHitterId = hitterId;
+
+			const extraGoal = checkGoal(b);
+			if (extraGoal) {
+				if (!b.isDecoy) {
+					// Real extra ball scored – treat exactly like a primary ball goal
+					handleGoal(extraGoal.scoredById, now);
+					extraGoalScored = true;
+					// handleGoal already cleared extraBalls
+				}
+				// Decoy exited arena – silently discard (no score)
+			} else {
+				aliveExtras.push(b);
+			}
+		}
+
+		if (!extraGoalScored) {
+			gameState.extraBalls = aliveExtras;
+		}
 	}
 }
