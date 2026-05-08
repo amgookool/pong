@@ -8,9 +8,8 @@
  * All functions are pure: they take current state slices and return a new paddleY.
  */
 
-import { CANVAS_HEIGHT } from './constants';
 import { movePaddle, PADDLE_SPEED } from './physics';
-import type { Ball, Player, AiDifficulty } from './types';
+import type { AiDifficulty, Ball, Player } from './types';
 
 // ---------------------------------------------------------------------------
 // Per-difficulty tuning parameters
@@ -51,7 +50,7 @@ const PROFILES: Record<AiDifficulty, AiProfile> = {
 	},
 	hard: {
 		speedFactor: 1.0,
-		deadZone: 6,
+		deadZone: 8,
 		reactionRate: 0.97,
 		errorRange: 8
 	}
