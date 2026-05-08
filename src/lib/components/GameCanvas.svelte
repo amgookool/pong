@@ -277,6 +277,6 @@
 	bind:this={canvas}
 	width={CANVAS_WIDTH}
 	height={CANVAS_HEIGHT}
-	class="block rounded-xl max-w-full max-h-full"
+	class="block rounded-xl h-full w-auto max-w-full"
 	style="aspect-ratio: {CANVAS_WIDTH} / {CANVAS_HEIGHT}; box-shadow: 0 0 60px 0 #000a, 0 0 0 1px #ffffff0a;"
 ></canvas>

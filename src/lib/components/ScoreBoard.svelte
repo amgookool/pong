@@ -10,64 +10,64 @@
 	const p2 = $derived(gameState.players[1]);
 </script>
 
-<div class="pointer-events-none flex w-full items-start justify-between px-6 pt-4">
+<div class="pointer-events-none flex w-full items-center justify-between px-5 py-2 gap-4">
 	<!-- Player 1 (left) -->
-	<div class="flex flex-col items-start gap-1">
-		<span class="text-xs font-semibold tracking-widest text-cyan-400 uppercase">{p1.name}</span>
-		<span class="text-5xl font-black tabular-nums text-white leading-none">{p1.score}</span>
-
-		<!-- Round wins -->
-		<div class="flex gap-1 mt-1">
-			{#each Array(gameState.winningRounds) as _, i (i)}
-				<span
-					class="inline-block h-2 w-2 rounded-full transition-colors"
-					style="background-color: {i < p1.wins ? '#22d3ee' : 'rgba(255,255,255,0.12)'}"
-				></span>
-			{/each}
+	<div class="flex items-center gap-3 min-w-0">
+		<span class="text-4xl font-black tabular-nums text-white leading-none shrink-0">{p1.score}</span>
+		<div class="flex flex-col gap-1 min-w-0">
+			<span class="text-xs font-semibold tracking-widest text-cyan-400 uppercase truncate">{p1.name}</span>
+			<!-- Round win pips -->
+			<div class="flex gap-1">
+				{#each Array(gameState.winningRounds) as _, i (i)}
+					<span
+						class="inline-block h-1.5 w-4 rounded-full transition-colors"
+						style="background-color: {i < p1.wins ? '#22d3ee' : 'rgba(255,255,255,0.12)'}"
+					></span>
+				{/each}
+			</div>
+			<!-- Active effect badge -->
+			<span
+				class="rounded-full px-2 py-0 text-[9px] font-bold tracking-widest uppercase text-gray-950 leading-4"
+				style="background-color: {p1.activeEffect ? POWERUP_COLORS[p1.activeEffect.type] : 'transparent'}; visibility: {p1.activeEffect ? 'visible' : 'hidden'};"
+			>
+				{p1.activeEffect ? POWERUP_LABELS[p1.activeEffect.type] : ' '}
+			</span>
 		</div>
-
-		<!-- Active effect badge – always rendered to reserve space and prevent layout shift -->
-		<span
-			class="mt-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase text-gray-950 transition-opacity duration-200"
-			style="background-color: {p1.activeEffect ? POWERUP_COLORS[p1.activeEffect.type] : 'transparent'}; visibility: {p1.activeEffect ? 'visible' : 'hidden'};"
-		>
-			{p1.activeEffect ? POWERUP_LABELS[p1.activeEffect.type] : '\u00a0'}
-		</span>
 	</div>
 
 	<!-- Centre info -->
-	<div class="pointer-events-auto flex flex-col items-center gap-1.5">
-		<span class="text-xs tracking-widest text-gray-500 uppercase">Round {gameState.currentRound}</span>
-		<span class="text-xs text-gray-600">of {gameState.winningRounds}</span>
+	<div class="pointer-events-auto flex flex-col items-center gap-1 shrink-0">
+		<span class="text-[10px] tracking-widest text-gray-500 uppercase">Round {gameState.currentRound} / {gameState.winningRounds}</span>
 		<button
 			onclick={resetToSetup}
-			class="mt-1 rounded-lg border border-white/10 px-3 py-1 text-[10px] font-semibold tracking-widest text-gray-500 uppercase transition hover:border-white/20 hover:text-gray-300 active:scale-95"
+			class="rounded-lg border border-white/10 px-3 py-0.5 text-[9px] font-semibold tracking-widest text-gray-500 uppercase transition hover:border-white/20 hover:text-gray-300 active:scale-95"
 		>
 			Quit
 		</button>
 	</div>
 
 	<!-- Player 2 (right) -->
-	<div class="flex flex-col items-end gap-1">
-		<span class="text-xs font-semibold tracking-widest text-violet-400 uppercase">{p2.name}</span>
-		<span class="text-5xl font-black tabular-nums text-white leading-none">{p2.score}</span>
-
-		<!-- Round wins -->
-		<div class="flex gap-1 mt-1">
-			{#each Array(gameState.winningRounds) as _, i (i)}
-				<span
-					class="inline-block h-2 w-2 rounded-full transition-colors"
-					style="background-color: {i < p2.wins ? '#a78bfa' : 'rgba(255,255,255,0.12)'}"
-				></span>
-			{/each}
+	<div class="flex items-center gap-3 min-w-0 justify-end">
+		<div class="flex flex-col gap-1 items-end min-w-0">
+			<span class="text-xs font-semibold tracking-widest text-violet-400 uppercase truncate">{p2.name}</span>
+			<!-- Round win pips -->
+			<div class="flex gap-1">
+				{#each Array(gameState.winningRounds) as _, i (i)}
+					<span
+						class="inline-block h-1.5 w-4 rounded-full transition-colors"
+						style="background-color: {i < p2.wins ? '#a78bfa' : 'rgba(255,255,255,0.12)'}"
+					></span>
+				{/each}
+			</div>
+			<!-- Active effect badge -->
+			<span
+				class="rounded-full px-2 py-0 text-[9px] font-bold tracking-widest uppercase text-gray-950 leading-4"
+				style="background-color: {p2.activeEffect ? POWERUP_COLORS[p2.activeEffect.type] : 'transparent'}; visibility: {p2.activeEffect ? 'visible' : 'hidden'};"
+			>
+				{p2.activeEffect ? POWERUP_LABELS[p2.activeEffect.type] : ' '}
+			</span>
 		</div>
-
-		<!-- Active effect badge – always rendered to reserve space and prevent layout shift -->
-		<span
-			class="mt-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase text-gray-950 transition-opacity duration-200"
-			style="background-color: {p2.activeEffect ? POWERUP_COLORS[p2.activeEffect.type] : 'transparent'}; visibility: {p2.activeEffect ? 'visible' : 'hidden'};"
-		>
-			{p2.activeEffect ? POWERUP_LABELS[p2.activeEffect.type] : '\u00a0'}
-		</span>
+		<span class="text-4xl font-black tabular-nums text-white leading-none shrink-0">{p2.score}</span>
 	</div>
 </div>
+

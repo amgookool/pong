@@ -19,7 +19,7 @@
 		</div>
 
 		<!-- Canvas area – grows to fill remaining space -->
-		<div class="relative flex-1 min-h-0 flex items-center justify-center px-4 py-2">
+		<div class="relative flex-1 min-h-0 flex items-center justify-center px-2 py-1">
 			<div class="relative flex h-full w-full items-center justify-center">
 				<GameCanvas />
 				<RoundOverlay />
@@ -27,7 +27,7 @@
 		</div>
 
 		<!-- Controls hint -->
-		<p class="shrink-0 pb-3 text-center text-xs tracking-widest text-gray-600 uppercase select-none">
+		<p class="shrink-0 pb-1.5 text-center text-[10px] tracking-widest text-gray-700 uppercase select-none">
 			{#if gameState.isSinglePlayer}
 				W / S to move &nbsp;·&nbsp; Space to serve
 			{:else}
