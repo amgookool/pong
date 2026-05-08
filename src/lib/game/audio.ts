@@ -49,8 +49,16 @@ if (typeof document !== 'undefined') {
 }
 
 function getCtx(): AudioContext | null {
-	if (typeof AudioContext === 'undefined') return null;
-	if (!ctx) ctx = new AudioContext();
+	if (typeof AudioContext !== 'undefined') {
+		if (!ctx) ctx = new AudioContext();
+		return ctx;
+	}
+	// Safari < 14.1 ships only webkitAudioContext
+	const W = (globalThis as unknown as Record<string, unknown>)['webkitAudioContext'] as
+		| (new () => AudioContext)
+		| undefined;
+	if (!W) return null;
+	if (!ctx) ctx = new W();
 	return ctx;
 }
 
@@ -75,9 +83,18 @@ export async function initAudio(): Promise<void> {
 	const audioCtx = getCtx();
 	if (!audioCtx) return;
 
-	// Resume in case the context was suspended (Chrome's autoplay policy)
-	if (audioCtx.state === 'suspended') {
-		await audioCtx.resume();
+	// Safari requires a BufferSourceNode to be *started* synchronously within
+	// the user-gesture stack — calling resume() alone is not enough.
+	// Play a one-frame silent buffer to fully unlock the context.
+	audioCtx.resume(); // intentionally NOT awaited (must fire synchronously)
+	try {
+		const silent = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
+		const src = audioCtx.createBufferSource();
+		src.buffer = silent;
+		src.connect(audioCtx.destination);
+		src.start(0);
+	} catch {
+		// non-fatal
 	}
 
 	const results = await Promise.allSettled(
