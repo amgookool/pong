@@ -89,7 +89,7 @@
 				<div class="space-y-3">
 					<p class="text-xs font-semibold tracking-widest text-gray-400 uppercase">AI Difficulty</p>
 					<div class="grid grid-cols-3 gap-2">
-						{#each difficulties as d}
+						{#each difficulties as d, i (i)}
 							<button
 								type="button"
 								onclick={() => (aiDifficulty = d.value)}
@@ -170,15 +170,65 @@
 			</div>
 
 			<!-- Power-up legend -->
-			<div class="rounded-xl border border-white/5 bg-gray-800/50 p-4 space-y-2">
-				<p class="text-xs font-semibold tracking-widest text-gray-400 uppercase">Power-ups</p>
-				<div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-400">
-					<span><span class="inline-block h-2 w-2 rounded-full bg-amber-400 mr-1"></span>Speed Boost – ball faster</span>
-					<span><span class="inline-block h-2 w-2 rounded-full bg-indigo-400 mr-1"></span>Slow Ball – ball slower</span>
-					<span><span class="inline-block h-2 w-2 rounded-full bg-green-400 mr-1"></span>Big Paddle – bigger paddle</span>
-					<span><span class="inline-block h-2 w-2 rounded-full bg-red-400 mr-1"></span>Tiny Paddle – smaller paddle</span>
+			<div class="rounded-xl border border-white/5 bg-gray-800/50 p-4 space-y-3">
+				<p class="text-xs font-semibold tracking-widest text-gray-400 uppercase">Power-ups &amp; Power-downs</p>
+				<p class="text-[10px] text-gray-500 leading-relaxed">
+					Items appear on the arena during play. The last player who touched the ball receives
+					the effect when it's collected.
+				</p>
+				<div class="grid grid-cols-2 gap-2">
+					<!-- Speed Boost -->
+					<div class="flex items-start gap-2">
+						<span class="mt-0.5 shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[9px] font-black text-black">↑</span>
+						<div>
+							<p class="text-[11px] font-semibold text-white leading-tight">Speed Boost</p>
+							<p class="text-[10px] text-gray-500">Ball moves faster for the hitter</p>
+						</div>
+					</div>
+					<!-- Slow Ball -->
+					<div class="flex items-start gap-2">
+						<span class="mt-0.5 shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full bg-indigo-400 text-[9px] font-black text-black">↓</span>
+						<div>
+							<p class="text-[11px] font-semibold text-white leading-tight">Slow Ball</p>
+							<p class="text-[10px] text-gray-500">Ball moves slower for the hitter</p>
+						</div>
+					</div>
+					<!-- Big Paddle -->
+					<div class="flex items-start gap-2">
+						<span class="mt-0.5 shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full bg-green-400 text-[9px] font-black text-black">+</span>
+						<div>
+							<p class="text-[11px] font-semibold text-white leading-tight">Big Paddle</p>
+							<p class="text-[10px] text-gray-500">Hitter's paddle grows larger</p>
+						</div>
+					</div>
+					<!-- Tiny Paddle -->
+					<div class="flex items-start gap-2">
+						<span class="mt-0.5 shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-400 text-[9px] font-black text-black">−</span>
+						<div>
+							<p class="text-[11px] font-semibold text-white leading-tight">Tiny Paddle</p>
+							<p class="text-[10px] text-gray-500">Hitter's paddle shrinks</p>
+						</div>
+					</div>
+					<!-- Split Ball -->
+					<div class="flex items-start gap-2">
+						<span class="mt-0.5 shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full bg-orange-400 text-[9px] font-black text-black">⊕</span>
+						<div>
+							<p class="text-[11px] font-semibold text-white leading-tight">Split Ball</p>
+							<p class="text-[10px] text-gray-500">Spawns a second real ball — either can score</p>
+						</div>
+					</div>
+					<!-- Fake Ball -->
+					<div class="flex items-start gap-2">
+						<span class="mt-0.5 shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full bg-pink-400 text-[9px] font-black text-black">?</span>
+						<div>
+							<p class="text-[11px] font-semibold text-white leading-tight">Decoy Ball</p>
+							<p class="text-[10px] text-gray-500">Spawns a fake ball — looks real, doesn't score</p>
+						</div>
+					</div>
 				</div>
-				<p class="text-xs text-gray-500 pt-1">Effects apply to the last player who hit the ball.</p>
+				<p class="text-[10px] text-gray-600 pt-1 border-t border-white/5">
+					Opposite effects cancel each other out. Same effect stacks the duration.
+				</p>
 			</div>
 
 			<button
