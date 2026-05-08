@@ -40,8 +40,10 @@ export const KEYS = {
 	P1_UP: 'KeyW',
 	P1_DOWN: 'KeyS',
 	/** Player 2 – right paddle */
-	P2_UP: 'ArrowUp',
-	P2_DOWN: 'ArrowDown',
+	// P2_UP: 'ArrowUp',
+	P2_UP: 'KeyO',
+	// P2_DOWN: 'ArrowDown',
+	P2_DOWN: 'KeyL',
 	/** Launch the ball */
 	LAUNCH: 'Space'
 } as const;

@@ -135,7 +135,7 @@
 							placeholder="Player 2"
 							class="w-full rounded-lg border border-white/10 bg-gray-800 px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
 						/>
-						<p class="text-xs text-gray-500">Controls: <kbd class="rounded bg-gray-700 px-1">↑</kbd> / <kbd class="rounded bg-gray-700 px-1">↓</kbd></p>
+						<p class="text-xs text-gray-500">Controls: <kbd class="rounded bg-gray-700 px-1">O</kbd> / <kbd class="rounded bg-gray-700 px-1">L</kbd></p>
 					</div>
 				</div>
 			{/if}
