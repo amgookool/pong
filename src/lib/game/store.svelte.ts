@@ -7,38 +7,36 @@
  * The loop() function drives the game forward each animation frame.
  */
 
+import { SvelteSet } from 'svelte/reactivity';
+import { resetAiState, tickAi } from './ai';
+import { initAudio, playSound } from './audio';
 import {
-	CANVAS_WIDTH,
-	CANVAS_HEIGHT,
-	PADDLE_WIDTH,
-	PADDLE_HEIGHT,
-	PADDLE_MARGIN,
 	BALL_RADIUS,
+	CANVAS_HEIGHT,
+	CANVAS_WIDTH,
+	GOAL_FLASH_DURATION_MS,
 	KEYS,
-	POWERUP_SPAWN_INTERVAL_MS,
-	GOAL_FLASH_DURATION_MS
+	PADDLE_HEIGHT,
+	POWERUP_SPAWN_INTERVAL_MS
 } from './constants';
-import type { GameState, Player, Ball, AiDifficulty, GoalFlash } from './types';
-import { tickAi, resetAiState } from './ai';
 import {
-	moveBall,
-	resolvePaddleCollisions,
 	checkGoal,
+	getServingBallState,
+	getServingVelocity,
+	moveBall,
 	movePaddle,
 	PADDLE_SPEED,
-	getServingBallState,
-	getServingVelocity
+	resolvePaddleCollisions
 } from './physics';
 import {
-	spawnPowerUp,
-	expirePowerUps,
-	detectPowerUpCollision,
 	applyEffect,
+	detectPowerUpCollision,
+	expirePlayerEffects,
+	expirePowerUps,
 	spawnExtraBall,
-	expirePlayerEffects
+	spawnPowerUp
 } from './powerups';
-import { SvelteSet } from 'svelte/reactivity';
-import { initAudio, playSound } from './audio';
+import type { AiDifficulty, Ball, GameState, Player } from './types';
 
 // ---------------------------------------------------------------------------
 // Initial state factories
