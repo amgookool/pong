@@ -31,7 +31,7 @@
 			{#if gameState.isSinglePlayer}
 				W / S to move &nbsp;·&nbsp; Space to serve
 			{:else}
-				P1: W / S &nbsp;·&nbsp; P2: ↑ / ↓ &nbsp;·&nbsp; Space to serve
+				P1: W / S &nbsp;·&nbsp; P2: O / L &nbsp;·&nbsp; Space to serve
 			{/if}
 		</p>
 	</div>
