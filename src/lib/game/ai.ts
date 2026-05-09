@@ -50,8 +50,8 @@ const PROFILES: Record<AiDifficulty, AiProfile> = {
 	},
 	hard: {
 		speedFactor: 1.0,
-		deadZone: 8,
-		reactionRate: 0.97,
+		deadZone: 6,
+		reactionRate: 0.98,
 		errorRange: 8
 	}
 };
