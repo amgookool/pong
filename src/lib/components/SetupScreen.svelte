@@ -192,7 +192,7 @@
 					<div class="space-y-1.5">
 						<p class="text-[10px] text-gray-500">Max bumpers on the arena at once</p>
 						<div class="flex gap-2">
-							{#each ([2, 4, 6] as (2 | 4 | 6)[]) as n}
+							{#each ([2, 4, 6] as (2 | 4 | 6)[]) as n, i (i)}
 								<button
 									type="button"
 									onclick={() => (bumperMaxCount = n)}
@@ -252,7 +252,7 @@
 						{ icon: '−', color: 'bg-red-400',    name: 'Tiny Paddle',   desc: 'Hitter\'s paddle shrinks' },
 						{ icon: '⊕', color: 'bg-orange-400', name: 'Split Ball',    desc: 'Spawns a second scoring ball' },
 						{ icon: '?', color: 'bg-pink-400',   name: 'Decoy Ball',    desc: 'Fake ball — doesn\'t score' },
-					] as p}
+					] as p, i (i)}
 						<div class="flex items-start gap-2">
 							<span class="mt-0.5 shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full {p.color} text-[9px] font-black text-black">{p.icon}</span>
 							<div>
